@@ -1,1 +1,10 @@
 inst/doc
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+.DS_Store
+Thumbs.db
+syntax_cache/
+*.utf8.md
+*.knit.md
