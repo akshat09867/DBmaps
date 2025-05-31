@@ -1,17 +1,23 @@
 Package: DBmaps
-Title: What the Package Does (One Line, Title Case)
+Title: An R Tool for Streamlining Database Joins
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Akshat", "Maurya", ,"codingmaster902@gmail.com", role = c("aut", "cre"))
+Description:
+    This package is designed to simplify and automate the exploration, 
+    organization, and merging of data stored in relational databases. Instead of 
+    manually inspecting schemas and writing complex SQL joins, DBMaps enables you to:
+        - Discover and document table relationships
+        - Create and maintain a join-map
+        - Search for suggested joins
+        - Merge data
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Suggests: 
     knitr,
     rmarkdown,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0)  
 Config/testthat/edition: 3
 VignetteBuilder: knitr
