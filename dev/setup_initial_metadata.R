@@ -1,7 +1,6 @@
-transactions_entry <- define_table_meta(
+transactions_entry <- table_info(
   table_name = "transactions",
   source_identifier = "transactions.csv", 
-  description = "Records of individual sales transactions, linking customers and products.",
   identifier_columns = c("customer_id", "product_id", "time"),
   key_outcome_specs = list(
     list(
@@ -33,7 +32,7 @@ transactions_entry <- define_table_meta(
 )
 
 
-customers_entry <- define_table_meta(
+customers_entry <- table_info(
   table_name = 'customers',
   source_identifier = 'customers.csv',
   identifier_columns = 'customer_id',
@@ -49,11 +48,11 @@ customers_entry <- define_table_meta(
           )
           )
     )
-  )  
+  )
 )
 
 
-product_entry <- define_table_meta(
+product_entry <- table_info(
   table_name = 'products',
   source_identifier = 'products.csv',
   identifier_columns = 'product_id',
@@ -79,10 +78,9 @@ product_entry <- define_table_meta(
 
 
 
-views_entry <- define_table_meta(
+views_entry <- table_info(
   table_name = 'product_views',
   source_identifier = 'views.csv',
-  description = 'It contains the views of the products',
   identifier_columns = c('customer_id','product_id','time'),
   key_outcome_specs = list(
     list(
@@ -139,15 +137,12 @@ table_of_tables[["transactions"]] <- transactions_entry
 table_of_tables[["customers"]] <- customers_entry
 table_of_tables[['products']] <- product_entry
 table_of_tables[['views']] <- views_entry
-# Verification remains the same
-print("Transactions metadata defined:")
-str(table_of_tables[["transactions"]])
-str(table_of_tables[["customers"]])
-str(table_of_tables[["products"]])
-str(table_of_tables[["views"]])
 print("Full Table of Tables content:")
-str(table_of_tables)
+print("Transaction Table:")
 print(table_of_tables[['transactions']])
+print("Customer Table:")
 print(table_of_tables[['customers']])
+print("Product Table:")
 print(table_of_tables[['products']])
+print("View Table:")
 print(table_of_tables[['views']])
