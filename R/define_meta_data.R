@@ -1,8 +1,9 @@
-#' Define Metadata for a Data Table in a Tidy Format
+#' Define Metadata for a Data Table in a Tidy data.table
 #'
 #' Takes descriptive information about a table and its analytical outcomes and
-#' returns a tidy data.frame where each row represents a single, unique
-#' aggregation method for a specific key outcome.
+#' returns a tidy data.table where each row represents a single, unique
+#' aggregation method for a specific key outcome. This function uses the
+#' data.table package for performance.
 #'
 #' @param table_name Character string, the conceptual name of the table.
 #' @param source_identifier Character string, the file name or DB table identifier.
@@ -10,10 +11,9 @@
 #' @param key_outcome_specs A list of 'OutcomeSpec' lists. Each OutcomeSpec is a list
 #'   with elements `OutcomeName`, `ValueExpression` (use `quote()`), and
 #'   `AggregationMethods` (a list of 'AggregationSpec' lists).
-#' @return A tidy data.frame (specifically, a data.table) with the table's
-#'   metadata, flattened so each row is a unique aggregation specification.
-#' @import data.table
-#' @importFrom data.table rbindlist
+#' @return A tidy data.table with the table's metadata, flattened so each row
+#'   is a unique aggregation specification.
+#' @importFrom data.table rbindlist as.data.table
 #' @export
 #' @examples
 #' transactions_info <- table_info(
@@ -42,6 +42,7 @@
 #'   )
 #' )
 #' print(transactions_info)
+#' class(transactions_info)
 table_info <- function(table_name,
                        source_identifier,
                        identifier_columns,
@@ -71,7 +72,7 @@ table_info <- function(table_name,
         list(
           aggregated_name = agg_spec$AggregatedName,
           aggregation_function = agg_spec$AggregationFunction,
-         if(length(agg_spec$GroupingVariables)>0){
+          grouping_variables= if(length(agg_spec$GroupingVariables)>0){
             paste(agg_spec$GroupingVariables, collapse = ",")
          } 
          else {
@@ -87,7 +88,7 @@ return(agg_r)
   flat_list <- unlist(all_rows, recursive = FALSE)
   if(length(flat_list)==0){
     return(
-      data.frame(
+      data.table(
         table_name=character(),
         source_identifier=character(),
         identifier_columns=character(),
@@ -99,19 +100,12 @@ return(agg_r)
       )
     )
   }
-  out_f <- rbindlist(flat_list)
-  setnames(
-    out_f,
-    old= c("V1"),
-    new= c("grouping_variables")
-  )
-  fin_l <- data.table(
+  final_dt <- data.table::rbindlist(flat_list)
+   final_dt[, `:=`(
     table_name = table_name,
     source_identifier = source_identifier,
-    identifier_columns = identifier_columns
-  )
-
-  fin_l <- cbind(fin_l,out_f)
-  return(fin_l)
-
+    identifier_columns = paste(identifier_columns, collapse = ",")
+  )]
+  data.table::setcolorder(final_dt, c("table_name", "source_identifier", "identifier_columns", "outcome_name", "value_expression", "aggregated_name", "aggregation_function", "grouping_variables"))
+  return(final_dt)
 }

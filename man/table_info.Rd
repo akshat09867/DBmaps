@@ -2,7 +2,7 @@
 % Please edit documentation in R/define_meta_data.R
 \name{table_info}
 \alias{table_info}
-\title{Define Metadata for a Data Table in a Tidy Format}
+\title{Define Metadata for a Data Table in a Tidy data.table}
 \usage{
 table_info(
   table_name,
@@ -23,13 +23,14 @@ with elements \code{OutcomeName}, \code{ValueExpression} (use \code{quote()}), a
 \code{AggregationMethods} (a list of 'AggregationSpec' lists).}
 }
 \value{
-A tidy data.frame (specifically, a data.table) with the table's
-metadata, flattened so each row is a unique aggregation specification.
+A tidy data.table with the table's metadata, flattened so each row
+is a unique aggregation specification.
 }
 \description{
 Takes descriptive information about a table and its analytical outcomes and
-returns a tidy data.frame where each row represents a single, unique
-aggregation method for a specific key outcome.
+returns a tidy data.table where each row represents a single, unique
+aggregation method for a specific key outcome. This function uses the
+data.table package for performance.
 }
 \examples{
 transactions_info <- table_info(
@@ -58,4 +59,5 @@ transactions_info <- table_info(
   )
 )
 print(transactions_info)
+class(transactions_info)
 }
