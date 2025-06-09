@@ -1,0 +1,167 @@
+---
+title: "Defining Table Metadata with table_info()"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Defining Table Metadata with table_info()}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(data.table)
+library(DBmaps)  
+
+```
+---
+
+## Introduction
+
+This guide walks you through using the `table_info()` function to capture metadata for your tables. At the end, you’ll have a master metadata table that describes the analytical potential of each source table.
+
+---
+
+## The `table_info()` Function
+
+The `table_info()` function is the primary tool for creating table metadata.  
+- **Key argument**: `key_outcome_specs`, a structured list defining each piece of analytical potential (outcomes and aggregations).  
+- **Returns**: a tidy `data.table` where each row is one aggregation method for a specific outcome.
+
+---
+
+## Example 1: The Customers Table
+
+We want to count the total number of customers and the number of customers by region.
+
+``` {r customers-example, echo = TRUE}
+# Create a tiny in‐memory data.table to mimic "customers.csv":
+# Corrected customer data with unique IDs and region column
+customers <- data.table(
+  customer_id = c("C001", "C002", "C003", "C004", "C005"),
+  region = c("Asia", "Europe", "Asia", "Americas", "Europe")
+)
+
+# Fixed metadata specification
+customers_info_dt <- table_info(
+  table_name = "customers",
+  source_identifier = "customers.csv",
+  identifier_columns = "customer_id",
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "CustomerCount",
+      ValueExpression = 1,  # Each row = one customer
+      AggregationMethods = list(
+        list(
+          AggregatedName = "TotalCustomers",
+          AggregationFunction = "sum",
+          GroupingVariables = character(0)  # Overall count
+        ),
+        list(
+          AggregatedName = "CustomersByRegion",
+          AggregationFunction = "sum",
+          GroupingVariables = "region"  # Grouped by region
+        )
+      )
+    )
+  )
+)
+
+print(customers_info_dt)
+```
+---
+
+## Example 2: The Products Table
+
+We will count how many products exist in each category.
+
+```{r products-example, echo = TRUE}
+# Tiny example to mimic "products.csv":
+products <- data.table(
+  product_id = c("P001", "P002", "P003", "P004", "P005", "P006"),
+  category   = c("A", "B", "A", "C", "B", "C")
+)
+
+# Capture metadata via table_info():
+# Corrected product data
+products <- data.table(
+  product_id = c("P001", "P002", "P003", "P004", "P005", "P006"),
+  category = c("A", "B", "A", "C", "B", "C")
+)
+
+products_info_dt <- table_info(
+  table_name = "products",
+  source_identifier = "products.csv",
+  identifier_columns = "product_id",
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "ProductCount",
+      ValueExpression = 1,  # Each row = one product
+      AggregationMethods = list(
+        list(
+          AggregatedName = "ProductsPerCategory",
+          AggregationFunction = "sum",
+          GroupingVariables = "category"
+        )
+      )
+    )
+  )
+)
+
+print(products_info_dt)
+```
+---
+
+## Example 3: The Transactions Table
+
+This is the central “fact” table, linking customers and products. We will define a “Revenue” outcome based on the `amount` column.
+
+```{r transactions-example, echo = TRUE}
+# Tiny in‐memory mimic of "transactions.csv":
+transactions <- data.table(
+  transaction_id = c("T001", "T002", "T003", "T004", "T005"),
+  customer_id = c("C001", "C002", "C001", "C003", "C004"),
+  product_id = c("P001", "P002", "P001", "P003", "P002"),
+  amount = c(10.0, 20.0, 15.0, 30.0, 25.0)
+)
+
+transactions_info_dt <- table_info(
+  table_name = "transactions",
+  source_identifier = "transactions.csv",
+  identifier_columns = c("transaction_id", "customer_id", "product_id"),
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "Revenue",
+      ValueExpression = quote(amount),  # Use actual column
+      AggregationMethods = list(
+        list(
+          AggregatedName = "TotalRevenue",
+          AggregationFunction = "sum",
+          GroupingVariables = character(0)
+        )
+    )
+  )
+))
+
+print(transactions_info_dt)
+```
+---
+
+## Assembling a Master Metadata Table
+
+Combine all individual metadata tables into one master overview:
+
+```{r all-example, echo = TRUE}
+master_metadata_dt <- rbindlist(
+  list(customers_info_dt, products_info_dt, transactions_info_dt)
+)
+
+# Print the combined master metadata
+print(master_metadata_dt)
+
+# Show the structure of the combined data.table
+cat("\nStructure of the master metadata data.table:\n")
+str(master_metadata_dt)
+```

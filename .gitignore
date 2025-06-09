@@ -8,3 +8,5 @@ Thumbs.db
 syntax_cache/
 *.utf8.md
 *.knit.md
+/doc/
+/Meta/
