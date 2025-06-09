@@ -60,6 +60,12 @@ table_info <- function(table_name,
   if (!is.list(key_outcome_specs)) {
     stop("'key_outcome_specs' must be a list.")
   }
+  for (i in seq_along(key_outcome_specs)) {
+    spec <- key_outcome_specs[[i]]
+    if (!is.character(spec$OutcomeName) || length(spec$OutcomeName) != 1) {
+      stop("'OutcomeName' must be provided and be a single character string")
+    }
+  }
   all_rows <- lapply(key_outcome_specs, function(out_spec){
     basic_info <- list(
       outcome_name = out_spec$OutcomeName,
@@ -88,7 +94,7 @@ return(agg_r)
   flat_list <- unlist(all_rows, recursive = FALSE)
   if(length(flat_list)==0){
     return(
-      data.table(
+      data.table::data.table(
         table_name=character(),
         source_identifier=character(),
         identifier_columns=character(),
