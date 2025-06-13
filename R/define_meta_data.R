@@ -11,12 +11,13 @@
 #' @param key_outcome_specs A list of 'OutcomeSpec' lists. Each OutcomeSpec is a list
 #'   with elements `OutcomeName`, `ValueExpression` (use `quote()`), and
 #'   `AggregationMethods` (a list of 'AggregationSpec' lists).
+#' **`AggregationMethods` entry must have a `GroupingVariables` element.**
 #' @return A tidy data.table with the table's metadata, flattened so each row
 #'   is a unique aggregation specification.
 #' @importFrom data.table rbindlist as.data.table
 #' @export
 #' @examples
-#' transactions_info <- table_info(
+#'transactions_info <- table_info(
 #'   table_name = "transactions",
 #'   source_identifier = "transactions.csv",
 #'   identifier_columns = c("customer_id", "product_id", "time"),
@@ -62,8 +63,33 @@ table_info <- function(table_name,
   }
   for (i in seq_along(key_outcome_specs)) {
     spec <- key_outcome_specs[[i]]
+
     if (!is.character(spec$OutcomeName) || length(spec$OutcomeName) != 1) {
       stop("'OutcomeName' must be provided and be a single character string")
+    }
+    if (is.null(spec$ValueExpression)) {
+      stop("'ValueExpression' must be provided")
+    }
+    if (!is.list(spec$AggregationMethods) || length(spec$AggregationMethods) == 0) {
+      stop("'AggregationMethods' must be a non-empty list")
+    }
+
+    for (agg_spec in spec$AggregationMethods) {
+      if (is.null(agg_spec$AggregatedName) || !is.character(agg_spec$AggregatedName) || length(agg_spec$AggregatedName) != 1) {
+        stop("'AggregatedName' must be provided")
+      }
+      if (is.null(agg_spec$AggregationFunction) || !is.character(agg_spec$AggregationFunction) || length(agg_spec$AggregationFunction) != 1) {
+        stop("'AggregationFunction' must be provided")
+      }
+   if (is.null(agg_spec$GroupingVariable)) {
+      stop("'Grouping Variable' must be provided")  
+    }
+    if (!is.character(agg_spec$GroupingVariable) || length(agg_spec$GroupingVariable) == 0) {
+      stop("'Grouping Variable' must be a character vector")  
+    }
+    if (anyNA(agg_spec$GroupingVariable)) {
+      stop("'Grouping Variable' must not be NA")  
+    }
     }
   }
   all_rows <- lapply(key_outcome_specs, function(out_spec){
@@ -78,12 +104,7 @@ table_info <- function(table_name,
         list(
           aggregated_name = agg_spec$AggregatedName,
           aggregation_function = agg_spec$AggregationFunction,
-          grouping_variables= if(length(agg_spec$GroupingVariables)>0){
-            paste(agg_spec$GroupingVariables, collapse = ",")
-         } 
-         else {
-          NA_character_
-         }
+          grouping_variables = paste(agg_spec$GroupingVariables, collapse = ",")
         )
       )
     })
