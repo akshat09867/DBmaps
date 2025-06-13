@@ -20,7 +20,8 @@ table_info(
 
 \item{key_outcome_specs}{A list of 'OutcomeSpec' lists. Each OutcomeSpec is a list
 with elements \code{OutcomeName}, \code{ValueExpression} (use \code{quote()}), and
-\code{AggregationMethods} (a list of 'AggregationSpec' lists).}
+\code{AggregationMethods} (a list of 'AggregationSpec' lists).
+\strong{\code{AggregationMethods} entry must have a \code{GroupingVariables} element.}}
 }
 \value{
 A tidy data.table with the table's metadata, flattened so each row
