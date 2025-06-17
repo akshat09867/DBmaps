@@ -1,0 +1,101 @@
+---
+title: "Generating Aggregation Code from Metadata"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Generating Aggregation Code from Metadata}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(data.table)
+library(DBmaps)
+```
+---
+
+## Introduction
+"Defining Table Metadata with table_info()," we learned how to create a rich, tidy metadata table that describes the structure and analytical potential of our source data tables.
+
+This vignette covers the next logical step: using that metadata to automatically generate executable R code. This is a powerful concept known as metaprogramming—writing code that writes code. 
+This automation is key to the DBmaps package, as it allows us to perform complex data transformations based on the simple rules we defined in our metadata.
+
+We will introduce the generate_aggregation_code() function, which reads our master metadata table and produces runnable data.table code strings to perform aggregations.
+
+## Create the Master Metadata
+First, we need a master metadata table to work with. The generate_aggregation_code() function requires this as its main input. 
+Here, we'll define the metadata for our transactions table, which has multiple outcomes and grouping rules.
+
+```{r transactions-example, echo = TRUE}
+# Define metadata for the transactions table
+transactions_info <- table_info(
+  table_name = "transactions",
+  source_identifier = "transactions.csv",
+  identifier_columns = c("customer_id", "product_id", "time"),
+  key_outcome_specs = list(
+    list(OutcomeName = "Revenue", ValueExpression = quote(price * quantity), AggregationMethods = list(
+      list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
+      list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum", GroupingVariables = "product_id")
+    )),
+    list(OutcomeName = "UnitsSold", ValueExpression = quote(quantity), AggregationMethods = list(
+      list(AggregatedName = "TotalUnitsByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id")
+    ))
+  )
+)
+
+# For this example, our master metadata only contains one table's info
+master_metadata_dt <- transactions_info
+
+cat("Master metadata table created successfully.\n")
+```
+## Generate Aggregation Code
+Now that we have our master_metadata_dt, we can use generate_aggregation_code() to create the code for the transactions table.
+
+```{r aggregation-code-generation, echo=TRUE}
+generated_code <- generate_aggregation_code(
+  table_name_filter = "transactions",
+  metadata_dt = master_metadata_dt
+)
+
+# Let's see the code strings that were generated
+print(generated_code)
+```
+
+As you can see, the function produced two distinct code strings. 
+It intelligently grouped the metadata by the grouping_variables column and created one statement for all aggregations by customer_id and another for all aggregations by product_id.
+
+## Execute the Generated Code
+The output of generate_aggregation_code() is not just text; it's valid, runnable data.table code. We can execute these strings using eval(parse(text = ...)) to perform the actual data manipulation.
+
+Let's demonstrate this by creating a sample transactions data.table and running one of the generated statements.
+
+```{r runnable-code, echo=TRUE}
+# 1. Create a sample 'transactions' data.table
+transactions <- data.table(
+  customer_id = c("C001", "C002", "C001", "C003", "C002"),
+  product_id = c("P01", "P02", "P02", "P01", "P02"),
+  price = c(10, 20, 22, 11, 21),
+  quantity = c(1, 2, 1, 3, 2)
+)
+
+# 2. Select the code that aggregates by customer_id
+code_to_run <- generated_code["customer_id"]
+cat("Code to be executed:\n", code_to_run, "\n\n")
+
+# 3. Parse and evaluate the code string
+aggregated_by_customer <- eval(parse(text = code_to_run))
+
+# 4. View the result
+cat("Result of execution:\n")
+print(aggregated_by_customer)
+```
+
+The code was executed successfully! We now have a new data.table, aggregated_by_customer, which contains the total revenue and units sold for each customer. 
+This aggregated table is now perfectly structured to be joined with a customers table on customer_id.
+
+## Conclusion
+The generate_aggregation_code() function provides a powerful bridge between your metadata definitions and actual data processing. 
+By using metaprogramming, you can automate complex data.table operations, ensuring consistency and dramatically reducing the need for manual, repetitive coding.
