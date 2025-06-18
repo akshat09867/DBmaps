@@ -11,3 +11,4 @@ syntax_cache/
 *.knit.md
 /doc/
 /Meta/
+vignettes/*.swp
