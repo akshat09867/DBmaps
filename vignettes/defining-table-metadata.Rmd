@@ -125,7 +125,7 @@ transactions_info_dt <- table_info(
   key_outcome_specs = list(
     list(
       OutcomeName = "Revenue",
-      ValueExpression = quote(amount),
+      ValueExpression = quote(price * quantity),
       AggregationMethods = list(
         list(
           AggregatedName = "RevenueByCustomer",
