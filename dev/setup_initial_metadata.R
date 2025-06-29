@@ -65,26 +65,9 @@ views_entry <- table_info(
   )
 )
 
+mater_metadata_dt <- rbindlist(list(customers_entry, product_entry, transactions_entry, views_entry))
 
+print(mater_metadata_dt)
 
-
-
-
-
-if (!exists("table_of_tables")) {
-  table_of_tables <- list()
-}
-
-table_of_tables[["transactions"]] <- transactions_entry
-table_of_tables[["customers"]] <- customers_entry
-table_of_tables[['products']] <- product_entry
-table_of_tables[['views']] <- views_entry
-print("Full Table of Tables content:")
-print("Transaction Table:")
-print(table_of_tables[['transactions']])
-print("Customer Table:")
-print(table_of_tables[['customers']])
-print("Product Table:")
-print(table_of_tables[['products']])
-print("View Table:")
-print(table_of_tables[['views']])
+jon <- map_join_paths(mater_metadata_dt)
+print(jon)
