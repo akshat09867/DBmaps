@@ -61,7 +61,6 @@ map_join_paths <- function(metadata_dt) {
 
   # Get a unique list of all tables defined in the metadata
   all_tables <- unique(metadata_dt[, .(table_name, identifier_columns)])
-    print(all_tables)
   # Create an empty list to store the paths we find
   path_list <- list()
 
