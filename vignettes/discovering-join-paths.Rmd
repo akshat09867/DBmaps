@@ -1,0 +1,106 @@
+---
+title: "Discovering Join Paths with map_join_paths()"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Discovering Join Paths}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(data.table)
+library(DBmaps)
+```
+
+## Introduction
+In the previous vignettes, we learned how to define rich metadata for our tables using table_info() and how to use that metadata to automatically generate aggregation code. 
+The next logical question is: how do we know which tables can be joined together?
+
+This vignette introduces the map_join_paths() function. It acts as a discovery tool that analyzes your complete metadata and automatically identifies all possible direct join connections between your tables. 
+The output is a "Join Map" that serves as the foundational "road map" of your database for all subsequent join operations.
+
+## Create the Master Metadata
+The map_join_paths() function requires the master_metadata_dt as its input. 
+Let's create the metadata for our four retail data tables (customers, products, transactions, and views) to build a complete example.
+
+```{r master-metadata}
+# Define metadata for all four tables
+customers_info <- table_info(
+  table_name = "customers",
+  source_identifier = "customers.csv",
+  identifier_columns = "customer_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "CustomerCount", ValueExpression = 1, AggregationMethods = list(
+      list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
+    ))
+))
+
+products_info <- table_info(
+  table_name = "products",
+  source_identifier = "products.csv",
+  identifier_columns = "product_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "ProductCount", ValueExpression = 1, AggregationMethods = list(
+      list(AggregatedName = "ProductsPerCategory", AggregationFunction = "sum", GroupingVariables = "category")
+    ))
+))
+
+transactions_info <- table_info(
+  table_name = "transactions",
+  source_identifier = "transactions.csv",
+  identifier_columns = c("customer_id", "product_id", "time"),
+  key_outcome_specs = list(
+    list(OutcomeName = "Revenue", ValueExpression = quote(price * quantity), AggregationMethods = list(
+      list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
+      list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum", GroupingVariables = "product_id")
+    ))
+  )
+)
+
+views_info <- table_info(
+  table_name = "views",
+  source_identifier = "views.csv",
+  identifier_columns = c("customer_id", "product_id", "view_timestamp"),
+  key_outcome_specs = list(
+    list(OutcomeName = "ViewCount", ValueExpression = 1, AggregationMethods = list(
+        list(AggregatedName = "ViewsByProduct", AggregationFunction = "sum", GroupingVariables = "product_id"),
+        list(AggregatedName = "ViewsByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id")
+    ))
+  )
+)
+
+# Combine into a single master metadata table
+master_metadata_dt <- rbindlist(list(customers_info, products_info, transactions_info, views_info))
+cat("Master metadata table created successfully.\n")
+```
+
+## Generate the Join Map
+Now that we have our master_metadata_dt, we can simply pass it to map_join_paths() to discover all the direct connections.
+
+```{r join-the-map}
+# Generate the Join Map from the metadata
+join_map <- map_join_paths(master_metadata_dt)
+
+# Print the resulting map
+print(join_map)
+```
+
+## Understanding the Output
+The join_map data.table is the "road map" of our database. Each row represents one possible direct join. The columns are:
+table_from: The name of the table that would be aggregated (typically a "fact" table).
+table_to: The name of the table it can be joined to (typically a "dimension" table).
+join_key: The common column that connects the two tables.
+
+Let's interpret the first row:
+1:   transactions      customers   customer_id
+
+This means: "An aggregated version of the transactions table, when grouped by customer_id, can be directly joined to the customers table using the customer_id column."
+The function successfully found this path because customer_id is a grouping_variable for transactions and the identifier_column for customers.
+
+## Conclusion
+The map_join_paths() function automates the discovery of relational connections within your data schema. 
+It transforms your abstract metadata definitions into a concrete map of potential joins.
