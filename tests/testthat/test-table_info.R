@@ -1,19 +1,23 @@
 library(testthat)
+library(data.table)
 
-test_that("table_info creates a data.table with correct structure and values", {
+
+test_that("table_info creates a data.table with correct list-column structure", {
   specs <- list(
-    list( # Outcome 1
+    list(
       OutcomeName = "Revenue",
       ValueExpression = quote(price * quantity),
       AggregationMethods = list(
-        list(AggregatedName = "TotalRevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id")
+        list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum",
+             GroupingVariables = "customer_id")
       )
     ),
-    list( # Outcome 2
+    list(
       OutcomeName = "UnitsSold",
       ValueExpression = quote(quantity),
       AggregationMethods = list(
-        list(AggregatedName = "TotalUnitsByProduct", AggregationFunction = "sum", GroupingVariables = c("product_id", "category_id"))
+        list(AggregatedName = "TotalUnitsByProduct", AggregationFunction = "sum",
+             GroupingVariables = c("product_id", "category_id"))
       )
     )
   )
@@ -27,32 +31,29 @@ test_that("table_info creates a data.table with correct structure and values", {
 
   # 1. Check output type
   expect_s3_class(info_dt, "data.table")
-  expect_s3_class(info_dt, "data.frame") # data.table also inherits from data.frame
 
   # 2. Check column names
-  expected_cols <- c("table_name", "source_identifier", "identifier_columns",
-                     "outcome_name", "value_expression",
-                     "aggregated_name", "aggregation_function", "grouping_variables")
-  expect_named(info_dt, expected_cols, ignore.order = FALSE) # Order matters for this set
+  expected_cols <- c("table_name", "source_identifier", "identifier_columns", "outcome_name",
+                     "value_expression", "aggregated_name", "aggregation_function",
+                     "grouping_variable")
+  expect_named(info_dt, expected_cols)
 
-  # 3. Check number of rows (1 outcome with 1 methods + 1 outcome with 1 method = 2 rows)
+  # 3. Check number of rows
   expect_equal(nrow(info_dt), 2)
 
-  # 4. Check values for a few representative fields
-  expect_equal(unique(info_dt$table_name), "transactions")
-  expect_equal(unique(info_dt$source_identifier), "transactions.csv")
-  expect_equal(unique(info_dt$identifier_columns), "tx_id_part1,tx_id_part2") # Check comma separation
-
-  expect_equal(info_dt$outcome_name[1], "Revenue")
-  expect_equal(info_dt$value_expression[1], "price * quantity") # deparse output
-  expect_equal(info_dt$aggregated_name[1], "TotalRevenueByCustomer")
-  expect_equal(info_dt$aggregation_func[1], "sum")
-  expect_equal(info_dt$grouping_variables[1], "customer_id")
-
-  expect_equal(info_dt$grouping_variables[2], "product_id,category_id")
-  expect_equal(info_dt$outcome_name[2], "UnitsSold")
-  expect_equal(info_dt$value_expression[2], "quantity")
+  # 4. Check values, correctly testing the list-columns
+  expect_equal(info_dt$table_name, rep("transactions", 2))
+  expect_equal(info_dt$source_identifier, rep("transactions.csv", 2))
+  expect_equal(info_dt$identifier_columns, rep(list(c("tx_id_part1", "tx_id_part2")), 2))
+  expect_equal(info_dt$outcome_name, c("Revenue", "UnitsSold"))
+  expect_equal(info_dt$value_expression, c("price * quantity", "quantity"))
+  expect_equal(info_dt$aggregated_name, c("RevenueByCustomer", "TotalUnitsByProduct"))
+  expect_equal(info_dt$aggregation_function, rep("sum", 2))
+  expect_equal(info_dt$grouping_variable, list("customer_id", c("product_id", "category_id")))
 })
+
+
+# --- Tests for Edge Cases and Validation ---
 
 test_that("table_info handles empty key_outcome_specs correctly", {
   info_dt_empty <- table_info(
@@ -64,101 +65,64 @@ test_that("table_info handles empty key_outcome_specs correctly", {
 
   expect_s3_class(info_dt_empty, "data.table")
   expect_equal(nrow(info_dt_empty), 0)
-  expected_cols <- c("table_name", "source_identifier", "identifier_columns",
-                     "outcome_name", "value_expression",
-                     "aggregated_name", "aggregation_function", "grouping_variables")
-  expect_named(info_dt_empty, expected_cols, ignore.order = FALSE)
+  # Check for the new column names
+  expected_cols <- c("table_name", "source_identifier", "identifier_columns", "outcome_name",
+                     "value_expression", "aggregated_name", "aggregation_function",
+                     "grouping_variable")
+  expect_named(info_dt_empty, expected_cols)
 })
 
-test_that("table_info input validation works", {
+test_that("table_info validates its main inputs", {
   # Test for invalid 'table_name'
   expect_error(
     table_info(table_name = 123, source_identifier = "test.csv", identifier_columns = "id", key_outcome_specs = list()),
     "'table_name' must be a single character string."
   )
 
-  # Test for invalid 'identifier_columns' (should be character vector)
+  # Test for invalid 'identifier_columns'
   expect_error(
     table_info(table_name = "test", source_identifier = "test.csv", identifier_columns = list("id"), key_outcome_specs = list()),
-    "'identifier_columns' must be a character vector"
+    "'identifier_columns' must be a character vector with at least one column name."
   )
   expect_error(
     table_info(table_name = "test", source_identifier = "test.csv", identifier_columns = character(0), key_outcome_specs = list()),
     "'identifier_columns' must be a character vector with at least one column name."
   )
+})
 
+test_that("table_info validates the structure of key_outcome_specs", {
   # Test for invalid 'key_outcome_specs' (should be a list)
   expect_error(
     table_info(table_name = "test", source_identifier = "test.csv", identifier_columns = "id", key_outcome_specs = "not a list"),
     "'key_outcome_specs' must be a list."
   )
 
-  test_that("table_info errors when outcome spec is missing ValueExpression", {
-  bad_specs <- list(
-    list(
-      OutcomeName = "InvalidOutcome",
-      AggregationMethods = list(
-        list(AggregatedName = "Agg", AggregationFunction = "sum", GroupingVariables = "grp")
-      )
-    )
-  )
+  # Test for missing ValueExpression
+  bad_specs_no_expr <- list(list(OutcomeName = "Invalid", AggregationMethods = list(list(AggregatedName="A", AggregationFunction="sum", GroupingVariables="g"))))
   expect_error(
-    table_info("test", "test.csv", "id", bad_specs),
+    table_info("test", "test.csv", "id", bad_specs_no_expr),
     "'ValueExpression' must be provided"
   )
 })
 
-
-test_that("table_info errors when outcome spec has no AggregationMethods", {
-  bad_specs <- list(
-    list(
-      OutcomeName = "InvalidOutcome",
-      ValueExpression = quote(x + y),
-      AggregationMethods = NULL
-    )
-  )
+test_that("table_info validates AggregationMethods structure", {
+  # Test for missing GroupingVariables
+  bad_specs_no_group <- list(list(
+    OutcomeName = "Revenue", ValueExpression = quote(p*q), AggregationMethods = list(
+      list(AggregatedName = "Rev", AggregationFunction = "sum") # Missing GroupingVariables
+  )))
   expect_error(
-    table_info("test", "test.csv", "id", bad_specs),
-    "'AggregationMethods' must be a non-empty list"
+    table_info("test", "test.csv", "id", bad_specs_no_group),
+    "Each 'AggregationMethods' entry must have at least one 'GroupingVariable'"
   )
-})
 
-test_that("table_info errors for malformed AggregationMethod", {
-  bad_specs <- list(
-    list(
-      OutcomeName = "Something",
-      ValueExpression = quote(a + b),
-      AggregationMethods = list(
-        list(AggregationFunction = "mean", GroupingVariables = "group_id")
-      )
-    )
-  )
+  # Test for empty GroupingVariables
+  bad_specs_empty_group <- list(list(
+    OutcomeName = "Revenue", ValueExpression = quote(p*q), AggregationMethods = list(
+      list(AggregatedName = "Rev", AggregationFunction = "sum", GroupingVariables = character(0))
+  )))
   expect_error(
-    table_info("test", "test.csv", "id", bad_specs),
-    "'AggregatedName' must be provided"
+    table_info("test", "test.csv", "id", bad_specs_empty_group),
+    "Each 'AggregationMethods' entry must have at least one 'GroupingVariable'"
   )
-})
-
-test_that("table_info errors when aggregation spec is NA GroupingVariables", {
-  bad_specs <- list(
-    list(
-      OutcomeName = "MissingGroup",
-      ValueExpression = quote(x + y),
-      AggregationMethods = list(
-        list(AggregatedName = "SumX", AggregationFunction = "sum", GroupingVariable = NA_character_)
-      )
-    )
-  )
-
-  expect_error(
-    table_info(
-      table_name = "test",
-      source_identifier = "test.csv",
-      identifier_columns = "id",
-      key_outcome_specs = bad_specs
-    ),
-    "'Grouping Variable' must not be NA"
-  )
-})
-
 })

@@ -18,20 +18,14 @@ table_info(
 
 \item{identifier_columns}{Character vector, names of column(s) acting as primary key(s).}
 
-\item{key_outcome_specs}{A list of 'OutcomeSpec' lists. Each OutcomeSpec is a list
-with elements \code{OutcomeName}, \code{ValueExpression} (use \code{quote()}), and
-\code{AggregationMethods} (a list of 'AggregationSpec' lists).
-\strong{\code{AggregationMethods} entry must have a \code{GroupingVariables} element.}}
+\item{key_outcome_specs}{A list of 'OutcomeSpec' lists.}
 }
 \value{
-A tidy data.table with the table's metadata, flattened so each row
-is a unique aggregation specification.
+A tidy data.table with the table's metadata. The \code{identifier_columns} and
+\code{grouping_variables} columns are list-columns.
 }
 \description{
-Takes descriptive information about a table and its analytical outcomes and
-returns a tidy data.table where each row represents a single, unique
-aggregation method for a specific key outcome. This function uses the
-data.table package for performance.
+Takes descriptive information about a table and returns a tidy data.table.
 }
 \examples{
 transactions_info <- table_info(
@@ -39,26 +33,20 @@ transactions_info <- table_info(
   source_identifier = "transactions.csv",
   identifier_columns = c("customer_id", "product_id", "time"),
   key_outcome_specs = list(
-    list( # Outcome: Revenue
+    list(
       OutcomeName = "Revenue",
       ValueExpression = quote(price * quantity),
       AggregationMethods = list(
-        list(AggregatedName = "TotalRevenueByCustomer", AggregationFunction = "sum",
+        list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum",
              GroupingVariables = "customer_id"),
-        list(AggregatedName = "TotalRevenueByProduct", AggregationFunction = "sum",
-             GroupingVariables = "product_id")
-      )
-    ),
-    list( # Outcome: Units Sold
-      OutcomeName = "UnitsSold",
-      ValueExpression = quote(quantity),
-      AggregationMethods = list(
-        list(AggregatedName = "TotalUnitsSoldByProduct", AggregationFunction = "sum",
+        list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum",
              GroupingVariables = "product_id")
       )
     )
   )
 )
+# Note the structure of the list-columns
 print(transactions_info)
-class(transactions_info)
+str(transactions_info[, .(identifier_columns, grouping_variable)])
+
 }
