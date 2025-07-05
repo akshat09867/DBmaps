@@ -2,7 +2,10 @@ Package: DBmaps
 Title: An R Tool for Streamlining Database Joins
 Version: 0.0.0.9000
 Authors@R: 
-    person("Akshat", "Maurya", ,"codingmaster902@gmail.com", role = c("aut", "cre"))
+    c(
+        person("Akshat", "Maurya", ,"codingmaster902@gmail.com", role = c("aut", "cre")),
+        person("David", "Shilane", ,"david.shilane@columbia.edu", role = c("aut"))
+    )
 Description:
     This package is designed to simplify and automate the exploration, 
     organization, and merging of data stored in relational databases. Instead of 
