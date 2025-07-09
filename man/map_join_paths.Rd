@@ -2,63 +2,24 @@
 % Please edit documentation in R/map_joins.R
 \name{map_join_paths}
 \alias{map_join_paths}
-\title{Discover Potential Join Paths from Metadata}
+\title{Discover Potential Join Paths from Metadata and Data}
 \usage{
-map_join_paths(metadata_dt)
+map_join_paths(metadata_dt, data_list = NULL)
 }
 \arguments{
-\item{metadata_dt}{A data.table containing the master metadata, created by
-calling \code{table_info()} for multiple tables and combining them.}
+\item{metadata_dt}{A data.table containing the master metadata.}
+
+\item{data_list}{A named list of data.tables, where names match \code{table_name}
+in \code{metadata_dt}. If provided, the function will scan the data to find
+inferred join paths. Defaults to \code{NULL}.}
 }
 \value{
-A \code{data.table} representing the "Join Map," with each row defining a
-potential join. The table has columns: \code{table_from}, \code{table_to}, \code{join_key}.
+A \code{data.table} representing the "Join Map," with columns:
+\code{table_from}, \code{table_to}, \code{key_from}, \code{key_to}, and \code{type}
+("METADATA" or "INFERRED").
 }
 \description{
-Analyzes a master metadata data.table to identify all potential direct join
-paths between tables. A path is discovered when a table's defined aggregation
-grouping variable(s) match the primary key(s) of another table.
-}
-\examples{
-# --- 1. Create Master Metadata (as we did in the vignettes) ---
-customers_info <- table_info(
-  table_name = "customers",
-  source_identifier = "customers.csv",
-  identifier_columns = "customer_id",
-  key_outcome_specs = list(list(OutcomeName = "CustomerCount", ValueExpression = 1,
-  AggregationMethods = list(list(AggregatedName = "CountByRegion",
-  AggregationFunction = "sum", GroupingVariables = "region"))))
-)
-
-products_info <- table_info(
-  table_name = "products",
-  source_identifier = "products.csv",
-  identifier_columns = "product_id",
-  key_outcome_specs = list(list(OutcomeName = "ProductCount", ValueExpression = 1,
-  AggregationMethods = list(list(AggregatedName = "ProductsPerCategory",
-  AggregationFunction = "sum", GroupingVariables = "category"))))
-)
-
-transactions_info <- table_info(
-  table_name = "transactions",
-  source_identifier = "transactions.csv",
-  identifier_columns = c("customer_id", "product_id", "time"),
-  key_outcome_specs = list(
-    list(OutcomeName = "Revenue", ValueExpression = quote(price * quantity),
-    AggregationMethods = list(
-      list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum",
-           GroupingVariables = "customer_id"),
-      list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum",
-           GroupingVariables = "product_id")
-    ))
-  )
-)
-
-master_metadata <- data.table::rbindlist(list(customers_info, products_info, transactions_info))
-
-# --- 2. Generate the Join Map from the metadata ---
-join_map <- map_join_paths(master_metadata)
-
-print(join_map)
-
+Analyzes metadata for explicit joins and optionally scans data to infer
+additional joins. It correctly handles single- and multi-variable join keys
+for metadata-based paths and infers single-column key paths from data.
 }

@@ -74,5 +74,103 @@ master_metadata_dt <- rbindlist(list(
   transactions_entry,
   views_entry
 ))
-print(master_metadata_dt)
 
+join_map <- map_join_paths(master_metadata_dt)
+
+print(join_map)
+
+
+
+
+# --- Sample Data ---
+
+customers <- data.table(
+  customer_id = c("c1","c2","c3"), 
+  region      = c("NA", "EU", "NA")
+)
+
+products <- data.table(
+  sku      = c("p1","p2","p3"), 
+  category = c("A", "B", "A")
+)
+
+transactions <- data.table(
+  customer_id  = c("c1","c2","c1","c3"),
+  product_code = c("p1","p3","p2","p1"),
+  revenue      = c(10, 50, 20, 15)
+)
+
+data_list_example <- list(
+  customers    = customers,
+  products     = products,
+  transactions = transactions
+)
+
+# --- Metadata Definition ---
+
+# 1) customers table
+customers_meta <- table_info(
+  "customers", "cust.csv", 
+  identifier_columns    = "customer_id",
+  key_outcome_specs   = list(
+    list(
+      OutcomeName        = "x",
+      ValueExpression    = 1,
+      AggregationMethods = list(
+        list(
+          AggregatedName      = "y",
+          AggregationFunction = "z",
+          GroupingVariables   = "region"
+        )
+      )
+    )
+  )
+)
+
+# 2) products table
+products_meta <- table_info(
+  "products", "prod.csv",
+  identifier_columns    = "sku",
+  key_outcome_specs   = list(
+    list(
+      OutcomeName        = "x",
+      ValueExpression    = 1,
+      AggregationMethods = list(
+        list(
+          AggregatedName      = "y",
+          AggregationFunction = "z",
+          GroupingVariables   = "category"
+        )
+      )
+    )
+  )
+)
+
+# 3) transactions table
+transactions_meta <- table_info(
+  "transactions", "trans.csv", 
+  identifier_columns    = "transaction_id",
+  key_outcome_specs   = list(
+    list(
+      OutcomeName        = "x",
+      ValueExpression    = 1,
+      AggregationMethods = list(
+        list(
+          AggregatedName      = "y",
+          AggregationFunction = "z",
+          GroupingVariables   = c("customer_id", "product_code")
+        )
+      )
+    )
+  )
+)
+
+
+
+master_meta_example <- rbindlist(list(
+  customers_meta, products_meta, transactions_meta
+))
+
+cat(" --- Run the enhanced function ---\n")
+all_discovered_paths <- map_join_paths(master_meta_example, data_list_example)
+print(all_discovered_paths)
