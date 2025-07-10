@@ -30,13 +30,13 @@ map_join_paths <- function(metadata_dt, data_list = NULL) {
   # --- METADATA-DRIVEN JOIN DISCOVERY ---
   
   # Get unique primary key definitions
-  pks_raw <- metadata_dt[!sapply(identifier_columns, is.null), .(table_name, identifier_columns)]
+  pks_raw <- metadata_dt[, .(table_name, identifier_columns)]
   pks_raw[, temp_key_string := sapply(identifier_columns, create_key_string)]
   all_pks <- unique(pks_raw, by = c("table_name", "temp_key_string"))
   all_pks[, temp_key_string := NULL]
 
   # Get unique grouping key definitions
-  grouping_keys_raw <- metadata_dt[!sapply(grouping_variable, is.null), .(table_name, grouping_variable)]
+  grouping_keys_raw <- metadata_dt[, .(table_name, grouping_variable)]
   grouping_keys_raw[, temp_key_string := sapply(grouping_variable, create_key_string)]
   all_grouping_keys <- unique(grouping_keys_raw, by = c("table_name", "temp_key_string"))
   all_grouping_keys[, temp_key_string := NULL]
