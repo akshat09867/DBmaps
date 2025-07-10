@@ -64,7 +64,7 @@ map_join_paths <- function(metadata_dt, data_list = NULL) {
     }
   }
 
-  # DATA-DRIVEN (INFERRED) JOIN DISCOVERY (Optional) ---
+  # DATA-DRIVEN (INFERRED) JOIN DISCOVERY ---
 
   if (!is.null(data_list)) {
     # Validate data_list input
@@ -82,7 +82,7 @@ map_join_paths <- function(metadata_dt, data_list = NULL) {
             table = tbl_name,
             column = col_name,
             type = class(dt[[col_name]])[1],
-            values = dt[[col_name]] # No need for unique() here due to check above
+            values = dt[[col_name]]
           )
         }
       }
@@ -108,7 +108,7 @@ map_join_paths <- function(metadata_dt, data_list = NULL) {
                 "INFERRED"
               } else {
                 "METADATA"
-}
+              }
 
             )
           }
