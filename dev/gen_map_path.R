@@ -148,7 +148,7 @@ products_meta <- table_info(
 
 # 3) transactions table
 transactions_meta <- table_info(
-  "transactions", "trans.csv", 
+  "transactions", "trans.csv",
   identifier_columns    = "transaction_id",
   key_outcome_specs   = list(
     list(
@@ -158,7 +158,7 @@ transactions_meta <- table_info(
         list(
           AggregatedName      = "y",
           AggregationFunction = "z",
-          GroupingVariables   = c("customer_id", "product_code")
+          GroupingVariables   = c("customer_id")
         )
       )
     )
