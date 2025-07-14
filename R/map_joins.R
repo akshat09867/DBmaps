@@ -11,7 +11,7 @@
 #' @return A `data.table` representing the "Join Map," with columns:
 #'   `table_from`, `table_to`, `key_from`, `key_to`, and `type`
 #'   ("METADATA" or "INFERRED").
-#' @importFrom data.table rbindlist is.data.table data.table setcolorder
+#' @importFrom data.table rbindlist is.data.table data.table anyDuplicated setcolorder
 #' @export
 map_join_paths <- function(metadata_dt, data_list = NULL) {
 
@@ -104,12 +104,7 @@ map_join_paths <- function(metadata_dt, data_list = NULL) {
               table_to = pk$table,
               key_from = list(from_col_name),
               key_to = list(pk$column),
-            type= if ( !identical(from_col_name, pk$column) ) {
-                "INFERRED"
-              } else {
-                "METADATA"
-              }
-
+            type= "INFERRED"
             )
           }
         }
@@ -127,18 +122,18 @@ map_join_paths <- function(metadata_dt, data_list = NULL) {
   join_map_raw <- data.table::rbindlist(all_paths)
 
   # Create a canonical key for each join path to handle de-duplication
-  join_map_raw[, temp_join_key := paste(
-    table_from, table_to,
+   join_map_raw[, temp_join_key := paste(
+    pmin(table_from, table_to), 
+    pmax(table_from, table_to),
     sapply(key_from, create_key_string),
     sapply(key_to, create_key_string)
   )]
-
   # Prioritize METADATA joins over INFERRED ones if they describe the same path
   join_map_raw[, type := factor(type, levels = c("METADATA", "INFERRED"))]
   data.table::setorder(join_map_raw, temp_join_key, type)
   
   final_map <- unique(join_map_raw, by = "temp_join_key")
   final_map[, temp_join_key := NULL]
-
+  final_map[, type := as.character(type)]
   return(final_map)
 }

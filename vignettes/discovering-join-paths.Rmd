@@ -1,13 +1,13 @@
 ---
-title: "Discovering Join Paths with map_join_paths()"
+title: "Automated Join Path Discovery"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Discovering Join Paths}
+  %\VignetteIndexEntry{Automated Join Path Discovery}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, include = FALSE}
+```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -17,90 +17,100 @@ library(DBmaps)
 ```
 
 ## Introduction
-In the previous vignettes, we learned how to define rich metadata for our tables using table_info() and how to use that metadata to automatically generate aggregation code. 
-The next logical question is: how do we know which tables can be joined together?
 
-This vignette introduces the map_join_paths() function. It acts as a discovery tool that analyzes your complete metadata and automatically identifies all possible direct join connections between your tables. 
-The output is a "Join Map" that serves as the foundational "road map" of your database for all subsequent join operations.
+In any data analysis project involving multiple tables, a primary task is to identify how these tables can be joined together. This typically involves matching foreign keys in one table to primary keys in another. The `map_join_paths()` function automates this discovery process, making it faster and less error-prone.
 
-## Create the Master Metadata
-The map_join_paths() function requires the master_metadata_dt as its input. 
-Let's create the metadata for our four retail data tables (customers, products, transactions, and views) to build a complete example.
+This function operates in two powerful modes:
 
-```{r master-metadata}
-# Define metadata for all four tables
-customers_info <- table_info(
-  table_name = "customers",
-  source_identifier = "customers.csv",
-  identifier_columns = "customer_id",
-  key_outcome_specs = list(
-    list(OutcomeName = "CustomerCount", ValueExpression = 1, AggregationMethods = list(
-      list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
-    ))
+1.  **Metadata-Driven Discovery**: It can find join paths based solely on a metadata definition, matching tables where a defined `grouping_variable` identically matches another table's `identifier_columns` (primary key). This is extremely fast and useful for well-documented schemas.
+
+2.  **Data-Driven Discovery**: Optionally, by providing the actual data, the function can scan column values to find "inferred" joins where key names *do not* match. This is invaluable for exploring new or messy datasets.
+
+## Case 1: Standard Joins via Metadata
+
+First, let's define metadata for a standard retail scenario with `customers`, `products`, and `transactions` tables.
+
+```{r setup_metadata}
+# Define metadata for each table
+customers_meta <- table_info("customers", "c.csv", "customer_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="region")))))
+
+products_meta <- table_info("products", "p.csv", "product_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="category")))))
+
+transactions_meta <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="rev", ValueExpression=1, AggregationMethods=list(
+    # This grouping variable will match the primary key of 'customers'
+    list(AggregatedName="a", AggregationFunction="sum", GroupingVariables="customer_id"),
+    # This one will match the primary key of 'products'
+    list(AggregatedName="b", AggregationFunction="sum", GroupingVariables="product_id")
+  ))
 ))
 
-products_info <- table_info(
-  table_name = "products",
-  source_identifier = "products.csv",
-  identifier_columns = "product_id",
-  key_outcome_specs = list(
-    list(OutcomeName = "ProductCount", ValueExpression = 1, AggregationMethods = list(
-      list(AggregatedName = "ProductsPerCategory", AggregationFunction = "sum", GroupingVariables = "category")
-    ))
+# Combine into a master metadata object
+master_meta <- rbindlist(list(customers_meta, products_meta, transactions_meta))
+```
+
+Now, we can find the join paths using only this metadata.
+
+```{r metadata_only_run}
+# Find paths without looking at the data
+metadata_paths <- map_join_paths(master_meta)
+print(metadata_paths)
+```
+
+The function correctly identifies two `METADATA` paths: `transactions` can be joined to `customers` on `customer_id`, and to `products` on `product_id`.
+
+## Case 2: Multi-Variable Key Joins
+
+The function also handles composite keys. Let's imagine a table `daily_promos` whose primary key is the combination of `product_id` and `region`.
+
+```{r multi_key_setup}
+daily_promos_meta <- table_info("daily_promos", "d.csv", c("product_id", "region"), list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="region")))))
+
+# Add a grouping variable to transactions that matches this composite key
+transactions_multi_meta <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="rev", ValueExpression=1, AggregationMethods=list(
+    list(AggregatedName="promo_rev", AggregationFunction="sum", GroupingVariables=c("product_id", "region"))
+  ))
 ))
 
-transactions_info <- table_info(
-  table_name = "transactions",
-  source_identifier = "transactions.csv",
-  identifier_columns = c("customer_id", "product_id", "time"),
-  key_outcome_specs = list(
-    list(OutcomeName = "Revenue", ValueExpression = quote(price * quantity), AggregationMethods = list(
-      list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
-      list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum", GroupingVariables = "product_id")
-    ))
-  )
-)
-
-views_info <- table_info(
-  table_name = "views",
-  source_identifier = "views.csv",
-  identifier_columns = c("customer_id", "product_id", "view_timestamp"),
-  key_outcome_specs = list(
-    list(OutcomeName = "ViewCount", ValueExpression = 1, AggregationMethods = list(
-        list(AggregatedName = "ViewsByProduct", AggregationFunction = "sum", GroupingVariables = "product_id"),
-        list(AggregatedName = "ViewsByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id")
-    ))
-  )
-)
-
-# Combine into a single master metadata table
-master_metadata_dt <- rbindlist(list(customers_info, products_info, transactions_info, views_info))
-cat("Master metadata table created successfully.\n")
+multi_key_meta <- rbindlist(list(daily_promos_meta, transactions_multi_meta))
 ```
 
-## Generate the Join Map
-Now that we have our master_metadata_dt, we can simply pass it to map_join_paths() to discover all the direct connections.
+```{r multi_key_run}
+multi_key_paths <- map_join_paths(multi_key_meta)
+print(multi_key_paths)
+```
+The function correctly identifies the single, multi-variable join path.
 
-```{r join-the-map}
-# Generate the Join Map from the metadata
-join_map <- map_join_paths(master_metadata_dt)
+## Case 3: Inferring Joins from Data
 
-# Print the resulting map
-print(join_map)
+What if our data is messy and key names don't align? Consider an `inventory` table where the product key is called `sku`, and an `orders` table that refers to it as `product_code`.
+
+```{r inferred_setup}
+# Define the data
+inventory_data <- data.table(sku = c("s1", "s2", "s3"), stock = c(10, 20, 5))
+orders_data <- data.table(order_id = 1:2, customer_ref = "c1", product_code = c("s1", "s2"))
+
+data_list <- list(
+  inventory = inventory_data,
+  orders = orders_data
+)
+
+# Define the metadata. Note the mismatched names.
+inventory_meta <- table_info("inventory", "i.csv", "sku", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="stock")))))
+orders_meta <- table_info("orders", "o.csv", "order_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="product_code")))))
+
+inferred_meta <- rbindlist(list(inventory_meta, orders_meta))
 ```
 
-## Understanding the Output
-The join_map data.table is the "road map" of our database. Each row represents one possible direct join. The columns are:
-table_from: The name of the table that would be aggregated (typically a "fact" table).
-table_to: The name of the table it can be joined to (typically a "dimension" table).
-join_key: The common column that connects the two tables.
+Running `map_join_paths` with only metadata would fail to find a path here. But by providing the `data_list`, we enable the data-driven search.
 
-Let's interpret the first row:
-1:   transactions      customers   customer_id
+```{r inferred_run}
+inferred_paths <- map_join_paths(inferred_meta, data_list = data_list)
+print(inferred_paths)
+```
+Success! The function scanned the values and found that `orders$product_code` can be joined to `inventory$sku`. It correctly marks this path as `INFERRED`.
 
-This means: "An aggregated version of the transactions table, when grouped by customer_id, can be directly joined to the customers table using the customer_id column."
-The function successfully found this path because customer_id is a grouping_variable for transactions and the identifier_column for customers.
+## Combining Both Methods
 
-## Conclusion
-The map_join_paths() function automates the discovery of relational connections within your data schema. 
-It transforms your abstract metadata definitions into a concrete map of potential joins.
+The true power of the function is when it combines both methods, automatically de-duplicating and prioritizing explicit metadata joins over inferred ones. This provides a complete and reliable map of all possible connections in your data ecosystem.

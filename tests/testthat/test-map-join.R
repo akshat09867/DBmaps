@@ -1,118 +1,124 @@
 library(testthat)
 library(data.table)
 
-test_metadata <- rbindlist(list(
-  # 1. Customers dimension table
-  table_info(
-    table_name = "customers",
-    source_identifier = "customers.csv",
-    identifier_columns = "customer_id",
-    key_outcome_specs = list(
-      list(OutcomeName = "Count", ValueExpression = 1, AggregationMethods = list(
-        list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
-      ))
-    )
-  ),
-  # 2. Products dimension table
-  table_info(
-    table_name = "products",
-    source_identifier = "products.csv",
-    identifier_columns = "product_id",
-    key_outcome_specs = list(list(OutcomeName = "ProductCount", ValueExpression = 1,
-  AggregationMethods = list(list(AggregatedName = "ProductsPerCategory",
-  AggregationFunction = "sum", GroupingVariables = "category"))))
-  ),
-  # 3. Transactions fact table
-  table_info(
-    table_name = "transactions",
-    source_identifier = "transactions.csv",
-    identifier_columns = "tx_id",
-    key_outcome_specs = list(
-      list(OutcomeName = "Revenue", ValueExpression = quote(price * quant), AggregationMethods = list(
-        list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
-        list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum", GroupingVariables = "product_id")
-      ))
-    )
-  ),
-  # 4. Views fact table
-  table_info(
-    table_name = "views",
-    source_identifier = "views.csv",
-    identifier_columns = "view_id",
-    key_outcome_specs = list(
-      list(OutcomeName = "ViewCount", ValueExpression = 1, AggregationMethods = list(
-        list(AggregatedName = "ViewsByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id")
-      ))
-    )
-  )
+
+# Metadata Generation
+customers_meta <- table_info("customers", "c.csv", "customer_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="region")))))
+products_meta <- table_info("products", "p.csv", "product_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="category")))))
+multi_dim_meta <- table_info("multi_dim", "m.csv", c("dim1", "dim2"), list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="dim1")))))
+transactions_meta <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="rev",ValueExpression=1,AggregationMethods=list(
+    list(AggregatedName="a",AggregationFunction="sum",GroupingVariables="customer_id"),
+    list(AggregatedName="b",AggregationFunction="sum",GroupingVariables="product_id"),
+    list(AggregatedName="c",AggregationFunction="sum",GroupingVariables=c("dim1", "dim2"))
+  ))
 ))
-# test_that("map_join_paths correctly identifies all valid paths", {
-#   join_map <- map_join_paths(test_metadata)
-#   # Expected paths:
-#   # 1. transactions -> customers (on customer_id)
-#   # 2. transactions -> products (on product_id)
-#   # 3. views -> customers (on customer_id)
-#   expected_map <- data.table(
-#     table_from = c("transactions", "transactions", "views"),
-#     table_to   = c("customers", "products", "customers"),
-#     join_from   = c("customer_id", "product_id", "customer_id"),
-#     join_to     = c("customer_id", "product_id", "customer_id")
-#   )
 
-#   # Check object type and dimensions
-#   expect_s3_class(join_map, "data.table")
-#   expect_equal(nrow(join_map), 3)
-#   expect_named(join_map, c("table_from", "table_to", "join_from", "join_to"))
+# Mismatched names metadata for inferred tests
+inventory_meta <- table_info("inventory", "i.csv", "sku", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="category")))))
+orders_meta <- table_info("orders", "o.csv", "order_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="customer_reference")))))
 
-#   # Sort both tables by all columns to ensure comparison is not order-dependent
-#   setorder(join_map, table_from, table_to, join_from, join_to)
-#   setorder(expected_map, table_from, table_to, join_from, join_to)
 
-#   # Check that the content is identical
-#   expect_equal(join_map, expected_map)
-# })
+# Data Generation
+customers_data <- data.table(customer_id = c("c1", "c2", "c3"))
+products_data <- data.table(product_id = c("p1", "p2"))
+inventory_data <- data.table(sku = c("s1", "s2", "s3"))
+multi_dim_data <- data.table(dim1 = "a", dim2 = "b")
+transactions_data <- data.table(trans_id=1:4, customer_id=c("c1","c2","c1","c3"), product_id=c("p1","p1","p2","p2"), dim1="a", dim2="b")
+orders_data <- data.table(order_id=1:2, customer_reference=c("s1","s2"))
 
-# test_that("map_join_paths does not create paths for non-matching grouping variables", {
-#   # The test_metadata for `customers` has a `grouping_vars` of "region",
-#   # which does not match any table's primary key. Therefore, no path should
-#   # originate from the `customers` table.
-#   join_map <- map_join_paths(test_metadata)
 
-#   expect_false("customers" %in% join_map$table_from)
-# })
+# --- Test Cases ---
 
-# test_that("map_join_paths handles no possible paths gracefully", {
-#   # Create metadata where no keys match
-#   no_path_metadata <- rbindlist(list(
-#     table_info("table_a", "a.csv", "a_id", list(list(
-#       OutcomeName = "O", ValueExpression = 1, AggregationMethods = list(
-#         list(AggregatedName = "A", AggregationFunction = "sum", GroupingVariables = "group_a")
-#       )))),
-#     table_info("table_b", "b.csv", "b_id", list(list(
-#       OutcomeName = "s", ValueExpression = 1, AggregationMethods = list(
-#         list(AggregatedName = "B", AggregationFunction = "sum", GroupingVariables = "group_b")
-#       ))))
-#   ))
+test_that("finds basic single-key metadata joins", {
+  meta <- rbindlist(list(customers_meta, products_meta, transactions_meta))
+  paths <- map_join_paths(meta)
+  
+  expect_equal(nrow(paths), 2)
+  expect_true(all(paths$type == "METADATA"))
+  expect_true(any(paths$table_from == "transactions" & paths$table_to == "customers"))
+  expect_true(any(paths$table_from == "transactions" & paths$table_to == "products"))
+})
 
-#   # Expect a warning and an empty data.table with the correct structure
-#   expect_warning(
-#     result <- map_join_paths(no_path_metadata),
-#     "No potential join paths were found in the provided metadata."
-#   )
+test_that("finds multi-key metadata joins", {
+  meta <- rbindlist(list(multi_dim_meta, transactions_meta))
+  paths <- map_join_paths(meta)
+  
+  expect_equal(nrow(paths), 1)
+  expect_equal(paths$table_from, "transactions")
+  expect_equal(paths$table_to, "multi_dim")
+  expect_equal(paths$key_from[[1]], c("dim1", "dim2"))
+  expect_equal(paths$key_to[[1]], c("dim1", "dim2"))
+  expect_equal(paths$type, "METADATA")
+})
 
-#   expect_s3_class(result, "data.table")
-#   expect_equal(nrow(result), 0)
-#   expect_named(result, c("table_from", "table_to", "join_from, join_to"))
-# })
+test_that("handles no possible joins gracefully", {
+  meta <- rbindlist(list(customers_meta, products_meta))
+  expect_warning(paths <- map_join_paths(meta), "No potential join paths were found.")
+  expect_equal(nrow(paths), 0)
+})
 
-test_that("map_join_paths errors on incorrect input type", {
-  # Input must be a data.table, not a list or data.frame
-  expect_error(
-    map_join_paths(list()),
-    "'metadata_dt' must be a data.table."
+test_that("finds inferred joins when data is provided", {
+  meta <- rbindlist(list(inventory_meta, orders_meta))
+  data <- list(inventory = inventory_data, orders = orders_data)
+  
+  paths <- map_join_paths(meta, data)
+  
+  expect_equal(nrow(paths), 1)
+  expect_equal(paths$table_from, "orders")
+  expect_equal(paths$table_to, "inventory")
+  expect_equal(paths$key_from[[1]], "customer_reference")
+  expect_equal(paths$key_to[[1]], "sku")
+  expect_equal(paths$type, "INFERRED")
+})
+
+test_that("combines and de-duplicates metadata and inferred joins correctly", {
+  # Here, transactions -> customers is both a METADATA and an INFERRED join.
+  # transactions -> inventory is only an INFERRED join.
+  
+  # Data setup where transactions references inventory by a different name
+  transactions_with_sku_ref <- data.table(
+    trans_id=1:2,
+    customer_id=c("c1","c2"),
+    product_sku=c("s1","s3")
   )
-  expect_error(
-    map_join_paths(as.data.frame(test_metadata)),
-    "'metadata_dt' must be a data.table."
+  
+  # Metadata setup
+  trans_sku_meta <- table_info("transactions", "t.csv", "trans_id", list(
+    list(OutcomeName="rev",ValueExpression=1,AggregationMethods=list(
+      list(AggregatedName="a",AggregationFunction="sum",GroupingVariables="customer_id"),
+      list(AggregatedName="b",AggregationFunction="sum",GroupingVariables="product_sku")
+    ))
+  ))
+  meta <- rbindlist(list(customers_meta, inventory_meta, trans_sku_meta))
+  data <- list(
+    customers = customers_data, 
+    inventory = inventory_data, 
+    transactions = transactions_with_sku_ref
   )
+  
+  paths <- map_join_paths(meta, data)
+  
+  expect_equal(nrow(paths), 2)
+  
+  # Check the METADATA path (it should be prioritized)
+  meta_path <- paths[table_to == "customers",]
+  expect_equal(meta_path$type, "METADATA")
+  expect_equal(meta_path$key_from[[1]], "customer_id")
+  
+  # Check the INFERRED path
+  inferred_path <- paths[table_to == "inventory",]
+  expect_equal(inferred_path$type, "INFERRED")
+  expect_equal(inferred_path$key_from[[1]], "product_sku")
+  expect_equal(inferred_path$key_to[[1]], "sku")
+})
+
+test_that("function throws errors for invalid input", {
+  expect_error(map_join_paths("not a data.table"), "'metadata_dt' must be a data.table.")
+  
+  meta <- rbindlist(list(customers_meta))
+  expect_error(map_join_paths(meta, data_list = "not a list"), "'data_list' must be a named list of data.tables.")
+  
+  unnamed_list <- list(customers_data)
+  expect_error(map_join_paths(meta, data_list = unnamed_list), "'data_list' must be a named list of data.tables.")
 })
