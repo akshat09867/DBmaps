@@ -87,11 +87,20 @@ generate_aggregation_code <- function(table_name_filter, metadata_dt) {
     group_meta <- meta_split[[group_key]]
     
     group_vars <- group_meta$grouping_variable[[1]]
-    
-    aggregation_expressions <- sprintf("%s = %s(%s)",
-                                      group_meta$aggregated_name,
-                                      group_meta$aggregation_function,
-                                      group_meta$value_expression)
+  aggregation_expressions <- mapply(
+      FUN = function(name, fn, expr) {
+        if (fn == ".N") {
+          sprintf("%s = .N", name)
+        } else {
+          sprintf("%s = %s(%s)", name, fn, expr)
+        }
+      },
+      name = group_meta$aggregated_name,
+      fn   = group_meta$aggregation_function,
+      expr = group_meta$value_expression,
+      SIMPLIFY = TRUE, USE.NAMES = FALSE
+    )
+
     
     j_clause <- paste(aggregation_expressions, collapse = ", ")
     by_clause <- paste0(".(", paste(group_vars, collapse = ", "), ")")
@@ -105,4 +114,3 @@ generate_aggregation_code <- function(table_name_filter, metadata_dt) {
   names(code_strings) <- names(meta_split)
   unlist(code_strings)
 }
-
