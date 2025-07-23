@@ -9,6 +9,8 @@
 #' @param metadata_dt The master metadata data.table.
 #' @param join_map An optional "Join Map" data.table produced by `map_join_paths()`.
 #'   If `NULL` (the default), the map will be generated automatically from the metadata.
+#' @param tables_dis An optional named list of data.tables used for data‑driven (inferred) join discovery. If `NULL`, only metadata‑driven joins are used.
+#'   If `NULL` (the default), the map will be generated automatically from the metadata.
 #' @return A list object representing the "join plan."
 #' @importFrom data.table is.data.table
 #' @export

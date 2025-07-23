@@ -21,6 +21,9 @@ create_join_plan(
 
 \item{join_map}{An optional "Join Map" data.table produced by \code{map_join_paths()}.
 If \code{NULL} (the default), the map will be generated automatically from the metadata.}
+
+\item{tables_dis}{An optional named list of data.tables used for data‑driven (inferred) join discovery. If \code{NULL}, only metadata‑driven joins are used.
+If \code{NULL} (the default), the map will be generated automatically from the metadata.}
 }
 \value{
 A list object representing the "join plan."
