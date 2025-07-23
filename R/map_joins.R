@@ -11,7 +11,7 @@
 #' @return A `data.table` representing the "Join Map," with columns:
 #'   `table_from`, `table_to`, `key_from`, `key_to`, and `type`
 #'   ("METADATA" or "INFERRED").
-#' @importFrom data.table rbindlist is.data.table data.table anyDuplicated setcolorder
+#' @importFrom data.table rbindlist is.data.table data.table setcolorder
 #' @export
 map_join_paths <- function(metadata_dt, data_list = NULL) {
 
