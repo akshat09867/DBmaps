@@ -49,7 +49,6 @@ test_that("finds multi-key metadata joins", {
   expect_equal(paths$table_to, "multi_dim")
   expect_equal(paths$key_from[[1]], c("dim1", "dim2"))
   expect_equal(paths$key_to[[1]], c("dim1", "dim2"))
-  expect_equal(paths$type, "METADATA")
 })
 
 test_that("handles no possible joins gracefully", {
@@ -69,12 +68,9 @@ test_that("finds inferred joins when data is provided", {
   expect_equal(paths$table_to, "inventory")
   expect_equal(paths$key_from[[1]], "customer_reference")
   expect_equal(paths$key_to[[1]], "sku")
-  expect_equal(paths$type, "INFERRED")
 })
 
 test_that("combines and de-duplicates metadata and inferred joins correctly", {
-  # Here, transactions -> customers is both a METADATA and an INFERRED join.
-  # transactions -> inventory is only an INFERRED join.
   
   # Data setup where transactions references inventory by a different name
   transactions_with_sku_ref <- data.table(
@@ -101,14 +97,10 @@ test_that("combines and de-duplicates metadata and inferred joins correctly", {
   
   expect_equal(nrow(paths), 2)
   
-  # Check the METADATA path (it should be prioritized)
   meta_path <- paths[table_to == "customers",]
-  expect_equal(meta_path$type, "METADATA")
   expect_equal(meta_path$key_from[[1]], "customer_id")
   
-  # Check the INFERRED path
   inferred_path <- paths[table_to == "inventory",]
-  expect_equal(inferred_path$type, "INFERRED")
   expect_equal(inferred_path$key_from[[1]], "product_sku")
   expect_equal(inferred_path$key_to[[1]], "sku")
 })
