@@ -89,10 +89,20 @@ generate_aggregation_code <- function(table_name_filter, metadata_dt) {
     group_vars <- group_meta$grouping_variable[[1]]
   aggregation_expressions <- mapply(
       FUN = function(name, fn, expr) {
-        if (fn == ".N") {
+        final_fn <- switch(tolower(fn),
+                           "count" = ".N",
+                           "sum" = "sum",
+                           "mean" = "mean",
+                           "median" = "median",
+                           "min" = "min",
+                           "max" = "max",
+                           fn
+        )
+        
+        if (final_fn == ".N") {
           sprintf("%s = .N", name)
         } else {
-          sprintf("%s = %s(%s)", name, fn, expr)
+          sprintf("%s = %s(%s)", name, final_fn, expr)
         }
       },
       name = group_meta$aggregated_name,
