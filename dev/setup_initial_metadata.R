@@ -35,9 +35,7 @@ transactions_entry <- table_info(
     list(
       OutcomeName = "Revenue", ValueExpression = quote(price * quantity),
       AggregationMethods = list(
-        # SINGLE variable grouping -> joins to 'customers'
         list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
-        # SINGLE variable grouping -> joins to 'products'
         list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum", GroupingVariables = "product_id"),
         list(AggregatedName = "DailyRevenueByCustomerProduct", AggregationFunction = "sum",
              GroupingVariables = c("customer_id", "product_id", "time"))
@@ -54,11 +52,8 @@ views_entry <- table_info(
     list(
       OutcomeName = "ViewCount", ValueExpression = 1,
       AggregationMethods = list(
-        # SINGLE variable grouping -> joins to 'customers'
-        list(AggregatedName = "ViewsByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
-        # SINGLE variable grouping -> joins to 'products'
-        list(AggregatedName = "ViewsByProduct", AggregationFunction = "sum", GroupingVariables = "product_id"),
-        # MULTI variable grouping -> joins to 'customer_product_interactions'
+        list(AggregatedName = "ViewsByCustomer", AggregationFunction = "count", GroupingVariables = "customer_id"),
+        list(AggregatedName = "ViewsByProduct", AggregationFunction = "count", GroupingVariables = "product_id"),
         list(AggregatedName = "DailyViewsByCustomerProduct", AggregationFunction = "sum",
              GroupingVariables = c("customer_id", "product_id", "time"))
       )
@@ -66,13 +61,11 @@ views_entry <- table_info(
   )
 )
 
-# --- 4. Combine Metadata and Discover Paths ---
 
-master_metadata_dt <- rbindlist(list(
-  customers_entry,
-  products_entry,
-  transactions_entry,
-  views_entry
-))
+meta <- MetadataRegistry$new()
+meta$add_table(transactions_entry)
+meta$add_table(views_entry)
+meta$add_table(customers_entry)
+meta$add_table(products_entry)
+master_metadata_dt <- meta$get_metadata()
 print(master_metadata_dt)
-
