@@ -64,23 +64,19 @@
 #'
 
 generate_aggregation_code <- function(table_name_filter, metadata_dt) {
-  # Ensure data.table context
   dt <- metadata_dt
 
-  # Filter the metadata for the specific table
   table_meta <- dt[dt$table_name == table_name_filter]
   if (nrow(table_meta) == 0) {
     warning("No metadata found for table: ", table_name_filter)
     return(character(0))
   }
   
-  # Create grouping keys
   group_keys <- sapply(table_meta$grouping_variable, function(x) {
     sorted_vars <- sort(unlist(x))
     paste(sorted_vars, collapse = ",")
   })
   
-  # Split by grouping keys
   meta_split <- split(table_meta, group_keys)
   
   code_strings <- lapply(names(meta_split), function(group_key) {

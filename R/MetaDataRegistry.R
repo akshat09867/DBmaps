@@ -28,10 +28,8 @@ add_table.MetadataRegistry <- function(registry, table_metadata) {
   table_name <- table_metadata$table_name[1]
   message("Added metadata for table: ", table_name)
   
-  # rbindlist is used to combine the old registry with the new metadata
   updated_registry <- rbindlist(list(registry, table_metadata), use.names = TRUE, fill = TRUE)
   
-  # Ensure the class is retained
   class(updated_registry) <- class(registry)
   return(updated_registry)
 }

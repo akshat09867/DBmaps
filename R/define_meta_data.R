@@ -36,7 +36,6 @@ table_info <- function(table_name,
                        source_identifier,
                        identifier_columns,
                        key_outcome_specs) {
-  # Input validations
   if (!is.character(table_name) || length(table_name) != 1) stop("'table_name' must be a single character string.")
   if (!is.character(source_identifier) || length(source_identifier) != 1) stop("'source_identifier' must be a single character string.")
   if (!is.character(identifier_columns) || length(identifier_columns) == 0) stop("'identifier_columns' must be a character vector with at least one column name.")
@@ -44,13 +43,11 @@ table_info <- function(table_name,
 
   rows <- list()
   for (spec in key_outcome_specs) {
-    # Validate spec
     if (!is.character(spec$OutcomeName) || length(spec$OutcomeName) != 1) stop("'OutcomeName' must be a single character string.")
     if (is.null(spec$ValueExpression)) stop("'ValueExpression' must be provided.")
     if (!is.list(spec$AggregationMethods) || length(spec$AggregationMethods) == 0) stop("'AggregationMethods' must be a non-empty list.")
 
     for (agg in spec$AggregationMethods) {
-      # Validate agg
       if (!is.character(agg$AggregatedName) || length(agg$AggregatedName) != 1) stop("'AggregatedName' must be provided.")
       if (!is.character(agg$AggregationFunction) || length(agg$AggregationFunction) != 1) stop("'AggregationFunction' must be provided.")
       if (!is.character(agg$GroupingVariables) || length(agg$GroupingVariables) == 0) stop("Each 'AggregationMethods' entry must have at least one 'GroupingVariable'.")
