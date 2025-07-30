@@ -1,56 +1,56 @@
-# #' Create a Plan for Aggregating and Merging Tables
-# #'
-# #' This function acts as a "planner." It takes a user's request for a final
-# #' dataset, finds a path using a join map, and creates a structured plan
-# #' (or "recipe") of the necessary steps.
-# #'
-# #' @param base_table A character string specifying the main table.
-# #' @param selections A named list specifying the columns or aggregations to include.
-# #' @param metadata_dt The master metadata data.table.
-# #' @param join_map An optional "Join Map" data.table produced by `map_join_paths()`.
-# #'   If `NULL` (the default), the map will be generated automatically from the metadata.
-# #' @param tables_dis An optional named list of data.tables used for data‑driven (inferred) join discovery. If `NULL`, only metadata‑driven joins are used.
-# #'   If `NULL` (the default), the map will be generated automatically from the metadata.
-# #' @return A list object representing the "join plan."
-# #' @importFrom data.table is.data.table
-# #' @export
-# #' @examples
-# #' # --- 1. Define Metadata (Prerequisite) ---
-# #' customers_meta <- table_info(
-# #'  table_name = "customers",
-# #'  source_identifier = "customers.csv",
-# #'  identifier_columns = "customer_id",
-# #'  key_outcome_specs = list(
-# #'    list(OutcomeName = "CustomerCount", ValueExpression = 1, AggregationMethods = list(
-# #'      list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
-# #'    ))
-# #'  )
-# #')
-# #' transactions_meta <- table_info(
-# #'   "transactions", "t.csv", "tx_id",
-# #'   key_outcome_specs = list(list(OutcomeName = "Revenue", ValueExpression = quote(r),
-# #'   AggregationMethods = list(list(AggregatedName = "RevenueByCustomer",
-# #'   AggregationFunction = "sum", GroupingVariables = "customer_id"))))
-# #' )
-# #' master_metadata <- data.table::rbindlist(list(customers_meta, transactions_meta))
-# #'
-# #' # --- 2. Define the Desired Output ---
-# #' user_selections <- list(
-# #'   customers = "region",
-# #'   transactions = "RevenueByCustomer"
-# #' )
-# #'
-# #' # --- 3. Create the Join Plan WITHOUT providing the join_map ---
-# #' # The function will now generate it automatically.
-# #' join_plan <- create_join_plan(
-# #'   base_table = "customers",
-# #'   selections = user_selections,
-# #'   metadata_dt = master_metadata
-# #' )
-# #'
-# #' # --- 4. Inspect the Plan ---
-# #' str(join_plan)
-# #'
+#' Create a Plan for Aggregating and Merging Tables
+#'
+#' This function acts as a "planner." It takes a user's request for a final
+#' dataset, finds a path using a join map, and creates a structured plan
+#' (or "recipe") of the necessary steps.
+#'
+#' @param base_table A character string specifying the main table.
+#' @param selections A named list specifying the columns or aggregations to include.
+#' @param metadata_dt The master metadata data.table.
+#' @param join_map An optional "Join Map" data.table produced by `map_join_paths()`.
+#'   If `NULL` (the default), the map will be generated automatically from the metadata.
+#' @param tables_dis An optional named list of data.tables used for data‑driven (inferred) join discovery. If `NULL`, only metadata‑driven joins are used.
+#'   If `NULL` (the default), the map will be generated automatically from the metadata.
+#' @return A list object representing the "join plan."
+#' @importFrom data.table is.data.table
+#' @export
+#' @examples
+#' # --- 1. Define Metadata (Prerequisite) ---
+#' customers_meta <- table_info(
+#'  table_name = "customers",
+#'  source_identifier = "customers.csv",
+#'  identifier_columns = "customer_id",
+#'  key_outcome_specs = list(
+#'    list(OutcomeName = "CustomerCount", ValueExpression = 1, AggregationMethods = list(
+#'      list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
+#'    ))
+#'  )
+#')
+#' transactions_meta <- table_info(
+#'   "transactions", "t.csv", "tx_id",
+#'   key_outcome_specs = list(list(OutcomeName = "Revenue", ValueExpression = quote(r),
+#'   AggregationMethods = list(list(AggregatedName = "RevenueByCustomer",
+#'   AggregationFunction = "sum", GroupingVariables = "customer_id"))))
+#' )
+#' master_metadata <- data.table::rbindlist(list(customers_meta, transactions_meta))
+#'
+#' # --- 2. Define the Desired Output ---
+#' user_selections <- list(
+#'   customers = "region",
+#'   transactions = "RevenueByCustomer"
+#' )
+#'
+#' # --- 3. Create the Join Plan WITHOUT providing the join_map ---
+#' # The function will now generate it automatically.
+#' join_plan <- create_join_plan(
+#'   base_table = "customers",
+#'   selections = user_selections,
+#'   metadata_dt = master_metadata
+#' )
+#'
+#' # --- 4. Inspect the Plan ---
+#' str(join_plan)
+#'
 create_join_plan <- function(base_table, selections, metadata_dt, join_map = NULL, tables_dis = NULL) {
   
   if (!is.character(base_table) || length(base_table) != 1) stop("'base_table' must be a single character string.")
