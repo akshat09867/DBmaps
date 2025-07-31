@@ -1,0 +1,119 @@
+---
+title: "Creating Execution Plans for Data Joins"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Creating Execution Plans for Data Joins}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(data.table)
+library(DBmaps)
+```
+
+## Introduction to the Planner
+
+This vignette demonstrates how to use create_join_plan() to automate data aggregation and merging workflows. 
+The function creates executable data processing plans based on table metadata and user selections.
+
+
+## 1. Define Metadata
+First, we will create metadata for two tables: customers and transactions using table_info().
+
+
+```{r setup_metadata}
+# Define customer metadata
+customers_meta <- table_info(
+  table_name = "customers",
+  source_identifier = "customers.csv",
+  identifier_columns = "customer_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "CustomerCount", 
+         ValueExpression = 1, 
+         AggregationMethods = list(
+           list(AggregatedName = "CountByRegion",
+                AggregationFunction = "sum",
+                GroupingVariables = "region")
+         )
+    )
+  )
+)
+
+# Define transaction metadata
+transactions_meta <- table_info(
+  "transactions", 
+  "t.csv", 
+  "tx_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "Revenue", 
+         ValueExpression = quote(price * quantity),
+         AggregationMethods = list(
+           list(AggregatedName = "RevenueByCustomer",
+                AggregationFunction = "sum", 
+                GroupingVariables = "customer_id")
+         )
+  ))
+)
+
+# Combine metadata
+master_metadata <- create_metadata_registry()
+master_metadata <- add_table(master_metadata, customers_meta)
+master_metadata <- add_table(master_metadata, transactions_meta)
+```
+## 2. Create Join Plan
+Now, we create the plan. We will omit the `join_map` to show that the function can generate it automatically.
+
+```{r run_simple, message=TRUE}
+user_selections <- list(
+  customers = "region",
+  transactions = "RevenueByCustomer"
+)
+plan <- create_join_plan(
+  base_table = "customers",
+  selections = user_selections,
+  metadata_dt = master_metadata
+)
+
+print(plan)
+```
+
+## 3. Handling Invalid Requests
+
+A key feature of the planner is its ability to validate user requests. What happens if we ask for an aggregation that cannot logically be joined to our base table?
+
+Let's ask for `RevenueByProduct` (grouped by `product_id`) to be joined to the `customers` table (keyed by `customer_id`). This is not a valid join.
+
+```{r setup_invalid}
+# Add product metadata for this example
+products_meta <- table_info("products", "p.csv", "product_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="category")))))
+transactions_meta_v2 <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="Revenue", ValueExpression=quote(price*qty), AggregationMethods=list(
+    # This aggregation is by product_id, not customer_id
+    list(AggregatedName="RevenueByProduct", AggregationFunction="sum", GroupingVariables="product_id")
+  ))
+))
+invalid_metadata <- rbindlist(list(customers_meta, products_meta, transactions_meta_v2))
+
+# The invalid request
+invalid_selections <- list(
+  customers = "customer_id",
+  transactions = "RevenueByProduct"
+)
+```
+
+Instead of producing a faulty plan or a cryptic error, `create_join_plan` stops with a clear, informative message.
+
+```{r run_invalid, error=TRUE}
+create_join_plan(
+  base_table = "customers",
+  selections = invalid_selections,
+  metadata_dt = invalid_metadata
+)
+```
+
+This strict validation ensures that only logical and correct data manipulation plans are generated, preventing common data analysis errors.
