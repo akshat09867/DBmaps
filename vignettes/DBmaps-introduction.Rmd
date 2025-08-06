@@ -1,5 +1,5 @@
 ---
-title: "DBmaps-introduction"
+title: "Introduction to DBmaps"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{DBmaps-introduction}
@@ -14,6 +14,532 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, include=FALSE}
 library(DBmaps)
+library(data.table)
 ```
+
+## Introduction
+This vignette provides an introduction to the DBmaps package and its approach to simplifying the analysis of data from relational databases within R.
+A common and often repetitive challenge in data analysis involves aggregating detailed "fact" tables (like transactions or event logs) before they
+can be meaningfully joined with descriptive "dimension" tables (like customers or products). DBmaps is designed to streamline and automate this entire workflow.
+
+The core principle of DBmaps is a metadata-driven approach. Instead of writing complex and manual data.table join and aggregation code, the user first describes 
+the analytical potential of their tables in a structured format called metadata. The package then uses this metadata to automatically discover join paths, 
+create executable plans, and produce the final merged dataset. This makes the entire process more efficient, scalable, and less prone to error.
+
+## The DBmaps Workflow & Core Functions
+The DBmaps package provides a series of functions that follow a logical workflow, from defining your data sources to executing a complete join plan. 
+The core functions are:
+
+- create_metadata_registry() & add_table(): Functions to initialize and populate a registry that stores all your metadata definitions.
+
+- table_info(): The foundational function used to define the metadata for a single table, including its primary key and possible aggregations.
+
+- map_join_paths(): A discovery function that analyzes the complete metadata to find all possible direct join paths between tables.
+
+- create_join_plan(): The "planner" that takes a user's request for a final dataset and creates a step-by-step, executable recipe of all the necessary aggregations and merges.
+
+- execute_join_plan(): The "executor" that runs the plan created by create_join_plan() to produce the final data.table.
+
+
+## Methods
+
+## 1. table_info()
+
+The table_info() function is the primary tool for creating this metadata. It captures descriptive information about a table and its analytical potential, returning a tidy data.table.
+
+The key argument is key_outcome_specs, a list that defines how a table can be aggregated. A crucial rule in DBmaps is that every aggregation method must include one or more GroupingVariables, as this is what makes the resulting aggregated data mergeable.
+
+---
+
+## Example 1: The Customers Table
+
+For the customers table, we want to define how to count the number of customers by region.
+This prepares the data to be potentially joined with another table that also has a region column.
+``` {r customers-example, echo = TRUE}
+customers <- data.table(
+  customer_id = c("C001", "C002", "C003", "C004", "C005"),
+  region = c("Asia", "Europe", "Asia", "Americas", "Europe")
+)
+
+# Use table_info() to capture the metadata
+customers_info_dt <- table_info(
+  table_name = "customers",
+  source_identifier = "customers.csv",
+  identifier_columns = "customer_id",
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "CustomerCount",
+      ValueExpression = 1,  # Each row = one customer
+      AggregationMethods = list(
+        list(
+          AggregatedName = "CustomersByRegion",
+          AggregationFunction = "sum",
+          GroupingVariables = "region"  # Grouped by region
+        )
+      )
+    )
+  )
+)
+
+print(customers_info_dt)
+```
+---
+
+## Example 2: The Products Table
+
+Next, for the products table, our goal is to define how to count the number of products within each category.
+This would allow us to join this product count to another table containing category-level information.
+
+```{r products-example, echo = TRUE}
+products <- data.table(
+  product_id = c("P001", "P002", "P003", "P004", "P005", "P006"),
+  category   = c("A", "B", "A", "C", "B", "C")
+)
+
+# Capture metadata via table_info():
+products_info_dt <- table_info(
+  table_name = "products",
+  source_identifier = "products.csv",
+  identifier_columns = "product_id",
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "ProductCount",
+      ValueExpression = 1,  # Each row = one product
+      AggregationMethods = list(
+        list(
+          AggregatedName = "ProductsPerCategory",
+          AggregationFunction = "sum",
+          GroupingVariables = "category"
+        )
+      )
+    )
+  )
+)
+
+print(products_info_dt)
+```
+---
+
+## Example 3: The Transactions Table
+
+The transactions table is our central fact table. We will define a "Revenue" outcome that can be aggregated by customer_id or product_id. 
+These aggregations are the most common use case, as they prepare the transactions table to be joined with customers or products.
+```{r transactions-example, echo = TRUE}
+# Tiny in-memory mimic of "transactions.csv":
+transactions <- data.table(
+  transaction_id = c("T001", "T002", "T003", "T004", "T005"),
+  customer_id = c("C001", "C002", "C001", "C003", "C004"),
+  product_id = c("P001", "P002", "P001", "P003", "P002"),
+  price = c(10, 20, 22, 11, 21),
+  quantity = c(1, 2, 1, 3, 2)
+)
+
+transactions_info_dt <- table_info(
+  table_name = "transactions",
+  source_identifier = "transactions.csv",
+  identifier_columns = "transaction_id",
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "Revenue",
+      ValueExpression = quote(price * quantity),
+      AggregationMethods = list(
+        list(
+          AggregatedName = "RevenueByCustomer",
+          AggregationFunction = "sum",
+          GroupingVariables = "customer_id"
+        ),
+        list(
+          AggregatedName = "RevenueByProduct",
+          AggregationFunction = "sum",
+          GroupingVariables = "product_id"
+        )
+      )
+    )
+  )
+)
+
+print(transactions_info_dt)
+```
+
+
+## 2. create_metadata_registry() and add_table()
+To manage metadata for multiple tables, DBmaps provides a simple registry system.
+create_metadata_registry() initializes a registry object, and add_table() adds the metadata for each table to it. This avoids the need to manually combine data.table objects.
+
+```{r creating-registry, echo = TRUE}
+customers_entry <- table_info(
+  table_name = "customers",
+  source_identifier = "customers.csv",
+  identifier_columns = "customer_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "CustomerCount", ValueExpression = 1, AggregationMethods = list(
+      list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
+    ))
+  )
+)
+
+products_entry <- table_info(
+  table_name = "products",
+  source_identifier = "products.csv",
+  identifier_columns = "product_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "ProductCount", ValueExpression = 1, AggregationMethods = list(
+      list(AggregatedName = "CountByCategory", AggregationFunction = "sum", GroupingVariables = "category")
+    ))
+  )
+)
+
+
+
+
+transactions_entry <- table_info(
+  table_name = "transactions",
+  source_identifier = "transactions.csv",
+  identifier_columns = c("customer_id", "product_id", "time"),
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "Revenue", ValueExpression = quote(price * quantity),
+      AggregationMethods = list(
+        list(AggregatedName = "RevenueByCustomer", AggregationFunction = "sum", GroupingVariables = "customer_id"),
+        list(AggregatedName = "RevenueByProduct", AggregationFunction = "sum", GroupingVariables = "product_id"),
+        list(AggregatedName = "DailyRevenueByCustomerProduct", AggregationFunction = "sum",
+             GroupingVariables = c("customer_id", "product_id", "time"))
+      )
+    )
+  )
+)
+
+views_entry <- table_info(
+  table_name = "views",
+  source_identifier = "views.csv",
+  identifier_columns = c("customer_id", "product_id", "time"),
+  key_outcome_specs = list(
+    list(
+      OutcomeName = "ViewCount", ValueExpression = 1,
+      AggregationMethods = list(
+        list(AggregatedName = "ViewsByCustomer", AggregationFunction = "count", GroupingVariables = "customer_id"),
+        list(AggregatedName = "ViewsByProduct", AggregationFunction = "count", GroupingVariables = "product_id"),
+        list(AggregatedName = "DailyViewsByCustomerProduct", AggregationFunction = "sum",
+             GroupingVariables = c("customer_id", "product_id", "time"))
+      )
+    )
+  )
+)
+
+
+meta <- create_metadata_registry()
+meta <- add_table(meta, customers_entry)
+meta <- add_table(meta, products_entry)
+meta <- add_table(meta, transactions_entry)
+meta <- add_table(meta, views_entry)
+print(meta)
+```
+
+## 3. map_join_paths()
+
+In any data analysis project involving multiple tables, a primary task is to identify how these tables can be joined together. This typically involves matching foreign keys in one table to primary keys in another. The `map_join_paths()` function automates this discovery process, making it faster and less error-prone.
+
+This function operates in two powerful modes:
+
+1.  **Metadata-Driven Discovery**: It can find join paths based solely on a metadata definition, matching tables where a defined `grouping_variable` identically matches another table's `identifier_columns` (primary key). This is extremely fast and useful for well-documented schemas.
+
+2.  **Data-Driven Discovery**: Optionally, by providing the actual data, the function can scan column values to find "inferred" joins where key names *do not* match. This is invaluable for exploring new or messy datasets.
+
+## 3a: Standard Joins via Metadata
+
+First, let's define metadata for a standard retail scenario with `customers`, `products`, and `transactions` tables.
+
+```{r setup_metadata}
+# Define metadata for each table
+customers_meta <- table_info("customers", "c.csv", "customer_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="region")))))
+
+products_meta <- table_info("products", "p.csv", "product_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="category")))))
+
+transactions_meta <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="rev", ValueExpression=1, AggregationMethods=list(
+    # This grouping variable will match the primary key of 'customers'
+    list(AggregatedName="a", AggregationFunction="sum", GroupingVariables="customer_id"),
+    # This one will match the primary key of 'products'
+    list(AggregatedName="b", AggregationFunction="sum", GroupingVariables="product_id")
+  ))
+))
+
+# Combine into a master metadata object
+meta1 <- create_metadata_registry()
+meta1 <- add_table(meta1, customers_entry)
+meta1 <- add_table(meta1, products_entry)
+meta1 <- add_table(meta1, transactions_entry)
+meta1 <- add_table(meta1, views_entry)
+```
+Now, we can find the join paths using only this metadata.
+
+```{r metadata_only_run}
+# Find paths without looking at the data
+metadata_paths <- map_join_paths(meta1)
+print(metadata_paths)
+```
+
+The function correctly identifies two `METADATA` paths: `transactions` can be joined to `customers` on `customer_id`, and to `products` on `product_id`.
+
+## 3b: Multi-Variable Key Joins
+
+The function also handles composite keys. Let's imagine a table `daily_promos` whose primary key is the combination of `product_id` and `region`.
+
+```{r multi_key_setup}
+daily_promos_meta <- table_info("daily_promos", "d.csv", c("product_id", "region"), list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="region")))))
+customers_meta <- table_info("customers", "c.csv", "customer_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="region")))))
+# Add a grouping variable to transactions that matches this composite key
+transactions_multi_meta <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="rev", ValueExpression=1, AggregationMethods=list(
+    list(AggregatedName="promo_rev", AggregationFunction="sum", GroupingVariables=c("product_id", "region")),
+    list(AggregatedName="a", AggregationFunction="sum", GroupingVariables="customer_id")
+  ))
+))
+
+multi_key_meta <- create_metadata_registry()
+multi_key_meta <- add_table(multi_key_meta, daily_promos_meta)
+multi_key_meta <- add_table(multi_key_meta, transactions_multi_meta)
+multi_key_meta <- add_table(multi_key_meta, customers_meta)
+```
+
+```{r multi_key_run}
+multi_key_paths <- map_join_paths(multi_key_meta)
+print(multi_key_paths)
+```
+The function correctly identifies the single, multi-variable join path.
+
+## 3c: Inferring Joins from Data
+
+What if our data is messy and key names don't align? Consider an `inventory` table where the product key is called `sku`, and an `orders` table that refers to it as `product_code`.
+
+```{r inferred_setup}
+# Define the data
+inventory_data <- data.table(sku = c("s1", "s2", "s3"), stock = c(10, 20, 5))
+orders_data <- data.table(order_id = 1:2, customer_ref = "c1", product_code = c("s1", "s2"))
+
+data_list <- list(
+  inventory = inventory_data,
+  orders = orders_data
+)
+
+# Define the metadata. Note the mismatched names.
+inventory_meta <- table_info("inventory", "i.csv", "sku", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="stock")))))
+orders_meta <- table_info("orders", "o.csv", "order_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="product_code")))))
+
+inferred_meta <- create_metadata_registry()
+inferred_meta <- add_table(inferred_meta, inventory_meta)
+inferred_meta <- add_table(inferred_meta, orders_meta)
+```
+
+Running `map_join_paths` with only metadata would fail to find a path here. But by providing the `data_list`, we enable the data-driven search.
+
+```{r inferred_run}
+inferred_paths <- map_join_paths(inferred_meta, data_list = data_list)
+print(inferred_paths)
+```
+Success! The function scanned the values and found that `orders$product_code` can be joined to `inventory$sku`. It correctly marks this path as `INFERRED`.
+
+## Combining Both Methods
+
+The true power of the function is when it combines both methods. This provides a complete and reliable map of all possible connections in your data ecosystem.
+
+## 4. create_join_plan()
+
+This function acts as the "planner" for your data workflow. It translates your goal for a final dataset into a concrete, step-by-step recipe of aggregations and merges.
+
+## 1. Define Metadata
+First, we will create metadata for two tables: customers and transactions using table_info().
+
+
+```{r setup_metadata_for_create_join_plan}
+# Define customer metadata
+customers_meta <- table_info(
+  table_name = "customers",
+  source_identifier = "customers.csv",
+  identifier_columns = "customer_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "CustomerCount", 
+         ValueExpression = 1, 
+         AggregationMethods = list(
+           list(AggregatedName = "CountByRegion",
+                AggregationFunction = "sum",
+                GroupingVariables = "region")
+         )
+    )
+  )
+)
+
+# Define transaction metadata
+transactions_meta <- table_info(
+  "transactions", 
+  "t.csv", 
+  "tx_id",
+  key_outcome_specs = list(
+    list(OutcomeName = "Revenue", 
+         ValueExpression = quote(price * quantity),
+         AggregationMethods = list(
+           list(AggregatedName = "RevenueByCustomer",
+                AggregationFunction = "sum", 
+                GroupingVariables = "customer_id")
+         )
+  ))
+)
+
+# Combine metadata
+master_metadata <- create_metadata_registry()
+master_metadata <- add_table(master_metadata, customers_meta)
+master_metadata <- add_table(master_metadata, transactions_meta)
+```
+## 2. Create Join Plan
+Now, we create the plan. We will omit the `join_map` to show that the function can generate it automatically.
+
+```{r run_simple, message=TRUE}
+user_selections <- list(
+  customers = "region",
+  transactions = "RevenueByCustomer"
+)
+plan <- create_join_plan(
+  base_table = "customers",
+  selections = user_selections,
+  metadata_dt = master_metadata
+)
+
+print(plan)
+```
+
+## 3. Handling Invalid Requests
+
+A key feature of the planner is its ability to validate user requests. What happens if we ask for an aggregation that cannot logically be joined to our base table?
+
+Let's ask for `RevenueByProduct` (grouped by `product_id`) to be joined to the `customers` table (keyed by `customer_id`). This is not a valid join.
+
+```{r setup_invalid}
+# Add product metadata for this example
+products_meta <- table_info("products", "p.csv", "product_id", list(list(OutcomeName="x",ValueExpression=1,AggregationMethods=list(list(AggregatedName="y",AggregationFunction="z",GroupingVariables="category")))))
+transactions_meta_v2 <- table_info("transactions", "t.csv", "trans_id", list(
+  list(OutcomeName="Revenue", ValueExpression=quote(price*qty), AggregationMethods=list(
+    # This aggregation is by product_id, not customer_id
+    list(AggregatedName="RevenueByProduct", AggregationFunction="sum", GroupingVariables="product_id")
+  ))
+))
+invalid_metadata <- create_metadata_registry()
+invalid_metadata <- add_table(invalid_metadata, products_meta)
+invalid_metadata <- add_table(invalid_metadata, transactions_meta_v2)
+
+# The invalid request
+invalid_selections <- list(
+  customers = "customer_id",
+  transactions = "RevenueByProduct"
+)
+```
+
+Instead of producing a faulty plan or a cryptic error, `create_join_plan` stops with a clear, informative message.
+
+```{r run_invalid, error=TRUE}
+create_join_plan(
+  base_table = "customers",
+  selections = invalid_selections,
+  metadata_dt = invalid_metadata
+)
+```
+The reason this is invalid is that the join key of the selected aggregation does not match the join key of the base table.
+
+1. The **base_table** is `customers`, whose primary join key is `customer_id`.
+2. The selection asks for the **RevenueByProduct** aggregation from the `transactions` table.
+3. According to our metadata, the **RevenueByProduct** aggregation is grouped by (and therefore keyed on) `product_id`.
+4. The planner function, `create_join_plan()`, correctly sees that there is no direct path to join a table keyed by `product_id` to a table keyed on `customer_id`.
+
+
+This strict validation ensures that only logical and correct data manipulation plans are generated, preventing common data analysis errors.
+
+
+## 5. execute_join_plan()
+
+This function covers the final step in the DBmaps workflow: executing a join plan to produce a final dataset. 
+The **execute_join_plan()** function is the "engine" that brings our plan to life. 
+It takes the step-by-step recipe generated by **create_join_plan()** and runs each command in sequence, handling the creation of intermediate tables and producing a clean, 
+final data.table.
+
+The **execute_join_plan()** function requires two main inputs:
+
+1. join_plan: The data.table recipe created by **create_join_plan()**.
+2. data_list: A named list of the actual source data.table objects.
+
+Let's first create these prerequisites. We will define metadata, create a plan, and prepare our list of source data.
+
+```{r metadata}
+# --- Define Metadata ---
+customers_meta <- table_info(
+  "customers", "c.csv", "customer_id",
+  key_outcome_specs = list(list(OutcomeName = "x", ValueExpression = 1, AggregationMethods = list(
+    list(AggregatedName="CountByRegion", AggregationFunction="count", GroupingVariables="region")
+  )))
+)
+transactions_meta <- table_info(
+  "transactions", "t.csv", "tx_id",
+  key_outcome_specs = list(list(OutcomeName = "Revenue", ValueExpression = quote(price * quantity),
+  AggregationMethods = list(list(AggregatedName = "RevenueByCustomer",
+  AggregationFunction = "sum", GroupingVariables = "customer_id"))))
+)
+master_metadata <- create_metadata_registry()
+master_metadata <- add_table(master_metadata, customers_meta)
+master_metadata <- add_table(master_metadata, transactions_meta)
+
+# --- Create a Join Plan ---
+user_selections <- list(
+  customers = c("customer_id", "region"),
+  transactions = "RevenueByCustomer"
+)
+
+join_plan <- create_join_plan(
+  base_table = "customers",
+  selections = user_selections,
+  metadata_dt = master_metadata
+)
+
+# --- Prepare the Source Data List ---
+customers_data <- data.table(
+  customer_id = c("c1", "c2", "c3"), 
+  region = c("NA", "EU", "NA")
+)
+transactions_data <- data.table(
+  transaction_id = 1:4,
+  customer_id = c("c1", "c2", "c1", "c3"),
+  price = c(10, 20, 15, 5),
+  quantity = c(1, 2, 1, 3)
+)
+
+data_list <- list(
+  customers = customers_data,
+  transactions = transactions_data
+)
+```
+
+## Executing the Plan
+With our join_plan and data_list ready, executing the plan is a single function call. 
+The function will print a message for each step it runs, showing you the code being executed.
+
+```{r execution}
+final_data <- execute_join_plan(
+  join_plan = join_plan,
+  data_list = data_list
+)
+```
+
+The function runs all the steps inside a clean, separate environment. This means that intermediate 
+tables like agg_transactions and merged_step_2 will not clutter your global workspace. Only the final data.table is returned.
+
+## The Final Result
+The final_data object contains the result of our fully executed plan: 
+a single data.table with the requested columns and aggregated values, correctly joined together.
+
+```{r final_dt}
+print(final_data)
+```
+
+## Conclusion
+The execute_join_plan() function completes the DBmaps workflow by seamlessly turning a high-level plan into a concrete data result. 
+By separating the planning from the execution, the package provides a workflow that is transparent, efficient, and easy to debug, while automating 
+the most repetitive tasks in data preparation.

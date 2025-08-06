@@ -115,5 +115,12 @@ create_join_plan(
   metadata_dt = invalid_metadata
 )
 ```
+The reason this is invalid is that the join key of the selected aggregation does not match the join key of the base table.
+
+1. The **base_table** is `customers`, whose primary join key is `customer_id`.
+2. The selection asks for the **RevenueByProduct** aggregation from the `transactions` table.
+3. According to our metadata, the **RevenueByProduct** aggregation is grouped by (and therefore keyed on) `product_id`.
+4. The planner function, `create_join_plan()`, correctly sees that there is no direct path to join a table keyed by `product_id` to a table keyed on `customer_id`.
+
 
 This strict validation ensures that only logical and correct data manipulation plans are generated, preventing common data analysis errors.
