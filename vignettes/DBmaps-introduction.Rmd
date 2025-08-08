@@ -32,15 +32,15 @@ create executable plans, and produce the final merged dataset. This makes the en
 The DBmaps package provides a series of functions that follow a logical workflow, from defining your data sources to executing a complete join plan. 
 The core functions are:
 
-- create_metadata_registry() & add_table(): Functions to initialize and populate a registry that stores all your metadata definitions.
+**- table_info():** The foundational function used to define the metadata for a single table, including its primary key and possible aggregations.
 
-- table_info(): The foundational function used to define the metadata for a single table, including its primary key and possible aggregations.
+**- create_metadata_registry() & add_table():** Functions to initialize and populate a registry that stores all your metadata definitions.
 
-- map_join_paths(): A discovery function that analyzes the complete metadata to find all possible direct join paths between tables.
+**- map_join_paths():** A discovery function that analyzes the complete metadata to find all possible direct join paths between tables.
 
-- create_join_plan(): The "planner" that takes a user's request for a final dataset and creates a step-by-step, executable recipe of all the necessary aggregations and merges.
+**- create_join_plan():** The "planner" that takes a user's request for a final dataset and creates a step-by-step, executable recipe of all the necessary aggregations and merges.
 
-- execute_join_plan(): The "executor" that runs the plan created by create_join_plan() to produce the final data.table.
+**- execute_join_plan():** The "executor" that runs the plan created by create_join_plan() to produce the final data.table.
 
 
 ## Methods
@@ -127,7 +127,6 @@ print(products_info_dt)
 The transactions table is our central fact table. We will define a "Revenue" outcome that can be aggregated by customer_id or product_id. 
 These aggregations are the most common use case, as they prepare the transactions table to be joined with customers or products.
 ```{r transactions-example, echo = TRUE}
-# Tiny in-memory mimic of "transactions.csv":
 transactions <- data.table(
   transaction_id = c("T001", "T002", "T003", "T004", "T005"),
   customer_id = c("C001", "C002", "C001", "C003", "C004"),
