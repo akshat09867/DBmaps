@@ -88,6 +88,8 @@ plan <- create_join_plan(
 metadata_dt = meta,
 join_map = paths
 )
-
+print(plan)
+visualize <- plot_join_plan(plan)
+print(visualize)
 final_dt <- execute_join_plan(plan, all_tables)
 print(final_dt)
