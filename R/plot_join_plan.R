@@ -36,7 +36,7 @@ plot_join_plan <- function(join_plan) {
     
     inputs <- switch(
       step$operation,
-      AGGREGATE = sub("^(\\w+).*", "\\1", step$code),
+      AGGREGATE = sub("^\\s*\\w+\\s*<-\\s*([A-Za-z0-9_.]+)\\s*\\[.*", "\\1", step$code),
       MERGE     = c(sub(".*merge\\(x = (\\w+).*", "\\1", step$code),
                     sub(".*merge\\(x = \\w+, y = (\\w+).*", "\\1", step$code)),
       SELECT    = sub("(\\w+)\\[, \\.SD,.*", "\\1", step$code)
