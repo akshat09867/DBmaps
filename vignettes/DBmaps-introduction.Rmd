@@ -49,10 +49,10 @@ First, let's load these tables into our R session. For this example, we will ass
 
 ```{r load_data, message=FALSE}
 
-path_customers <- system.file("extdata","customers.csv",package = "DBmaps")
-path_products <- system.file("extdata","products.csv",package = "DBmaps")
-path_transactions <- system.file("extdata","transactions.csv",package = "DBmaps")
-path_views <- system.file("extdata","views.csv",package = "DBmaps")
+path_customers <- system.file("extdata", "customers.csv", package = "DBmaps")
+path_products <- system.file("extdata", "products.csv", package = "DBmaps")
+path_transactions <- system.file("extdata","transactions.csv", package = "DBmaps")
+path_views <- system.file("extdata", "views.csv", package = "DBmaps")
 
 customers <- fread(path_customers)
 products <- fread(path_products)
@@ -173,7 +173,7 @@ selections <- list(
 
 # Generate the plan
 plan <- create_join_plan(
-  base_table = "products", 
+  base_table = "products",
   selections = selections,
   metadata_dt = meta,
   join_map = paths
