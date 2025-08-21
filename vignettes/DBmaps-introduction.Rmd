@@ -12,8 +12,6 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-```
-```{r setup, include=FALSE}
 library(DBmaps)
 library(data.table)
 
@@ -52,7 +50,7 @@ First, let's load these tables into our R session. For this example, we will ass
 path_customers <- system.file("extdata", "customers.csv", package = "DBmaps")
 path_products <- system.file("extdata", "products.csv", package = "DBmaps")
 path_transactions <- system.file("extdata","transactions.csv", package = "DBmaps")
-path_views <- system.file("extdata", "views.csv", package = "DBmaps")
+path_views <- system.file("extdata", "views_sample.csv", package = "DBmaps")
 
 customers <- fread(path_customers)
 products <- fread(path_products)
