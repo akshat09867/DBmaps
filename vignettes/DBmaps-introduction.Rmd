@@ -41,21 +41,20 @@ The example uses four CSV files that represent common tables in an e-commerce da
 *   [**customers.csv**](https://github.com/akshat09867/Retail-data/blob/main/inst/extdata/customers.csv)
 *   [**products.csv**](https://github.com/akshat09867/Retail-data/blob/main/inst/extdata/products.csv)
 *   [**transactions.csv**](https://github.com/akshat09867/Retail-data/blob/main/inst/extdata/transactions.csv)
-*   [**views.csv**](https://github.com/akshat09867/Retail-data/blob/main/inst/extdata/views_sample.csv)
+*   [**views.csv**](https://github.com/akshat09867/Retail-data/blob/main/inst/extdata/view.csv)
 
 First, let's load these tables into our R session. For this example, we will assume the files have been downloaded to a local `extdata` directory.
 
 ```{r load_data, message=FALSE}
-
 path_customers <- system.file("extdata", "customers.csv", package = "DBmaps")
 path_products <- system.file("extdata", "products.csv", package = "DBmaps")
-path_transactions <- system.file("extdata","transactions.csv", package = "DBmaps")
-path_views <- system.file("extdata", "views_sample.csv", package = "DBmaps")
+path_transactions <- system.file("extdata", "transactions.csv", package = "DBmaps")
+path_views <- system.file("extdata", "views.csv", package = "DBmaps")
 
-customers <- data.table::fread(path_customers)
-products <- data.table::fread(path_products)
-transactions <- data.table::fread(path_transactions)
-views <- data.table::fread(path_views)
+customers <- fread(path_customers)
+products <- fread(path_products)
+transactions <- fread(path_transactions)
+views <- fread(path_views)
 
 transactions[, time := as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")]
 views[, time := as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")]
@@ -250,7 +249,7 @@ the generated code, returning the final dataset.
 
 ```{r execute_plan, message=TRUE}
 # The executor runs the plan in a clean environment
-final_dt <- execute_join_plan(plan, all_tables)
+final_dt <- execute_join_plan(plan, all_tables) 
 
 # Show the first few rows of the final, merged data.table
 print(head(final_dt))
