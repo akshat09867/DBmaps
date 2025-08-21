@@ -33,14 +33,24 @@ plot_join_plan <- function(join_plan) {
       SELECT    = "final"
     )
     all_nodes[[target_node]] <- node_type
-    
-    inputs <- switch(
-      step$operation,
-      AGGREGATE = sub("^\\s*\\w+\\s*<-\\s*([A-Za-z0-9_.]+)\\s*\\[.*", "\\1", step$code),
-      MERGE     = c(sub(".*merge\\(x = (\\w+).*", "\\1", step$code),
-                    sub(".*merge\\(x = \\w+, y = (\\w+).*", "\\1", step$code)),
-      SELECT    = sub("(\\w+)\\[, \\.SD,.*", "\\1", step$code)
-    )
+  extract_rhs_table <- function(code) {
+    tbl <- sub("^\\s*\\w+\\s*<-\\s*([A-Za-z0-9_.`]+)\\s*\\[.*", "\\1", code)
+    gsub("^`|`$", "", tbl)
+  }
+
+  extract_merge_xy <- function(code) {
+    x <- sub(".*merge\\([^)]*\\bx\\s*=\\s*([A-Za-z0-9_.`]+).*", "\\1", code)
+    y <- sub(".*merge\\([^)]*\\by\\s*=\\s*([A-Za-z0-9_.`]+).*", "\\1", code)
+    c(gsub("^`|`$", "", x), gsub("^`|`$", "", y))
+  }
+
+  inputs <- switch(
+    step$operation,
+    AGGREGATE = extract_rhs_table(step$code),
+    MERGE     = extract_merge_xy(step$code),
+    SELECT    = extract_rhs_table(step$code)
+  )
+
     
     for (input_node in inputs) {
       if (is.null(all_nodes[[input_node]])) {
