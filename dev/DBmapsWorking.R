@@ -3,7 +3,7 @@ library(data.table)
 path_customers <- system.file("extdata", "customers.csv", package = "DBmaps")
 path_products <- system.file("extdata", "products.csv", package = "DBmaps")
 path_transactions <- system.file("extdata", "transactions.csv", package = "DBmaps")
-path_views <- system.file("extdata", "views.csv", package = "DBmaps")
+path_views <- system.file("extdata", "views_sample.csv", package = "DBmaps")
 
 
 customers <- fread(path_customers)
