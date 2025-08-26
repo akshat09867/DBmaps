@@ -109,6 +109,25 @@ views_info <- table_info(
 cat("---Metadata for transactions---\n")
 print(transactions_info)
 ```
+### Understanding the Metadata Columns
+The output of table_info() has several key columns that drive the entire DBmaps system. Here is a brief explanation of what each one does:
+
+**table_name:** The conceptual name of the table (e.g., "transactions").
+
+**identifier_columns:** This list-column contains the name(s) of the column(s) that form the primary key of the raw table. This is what other tables can join TO.
+
+**outcome_name:** A high-level description of the metric being calculated (e.g., "Revenue").
+
+**value_expression:** The R code (as a string) that defines how to calculate the raw value for the outcome from the source table's columns (e.g., "price * quantity").
+
+**aggregated_name:** The final name for the new, aggregated column in the summarized table (e.g., "RevenueByCustomer"). This is the name you will use in your selections when creating a plan.
+
+**aggregation_function:** The function to apply to the value_expression during grouping (e.g., "sum").
+
+**grouping_variable:** This is the most critical column for joins. It is a list-column containing the name(s) of the column(s) to group by. The values in this column define the "join key" that can be used to join this aggregated data FROM.
+
+A crucial rule in DBmaps is that every aggregation method must include one or more GroupingVariables, as this is what makes the resulting aggregated data mergeable with other tables.
+
 ### 3. create_metadata_registry() and add_table()
 To manage metadata for multiple tables, DBmaps provides a simple registry system.
 create_metadata_registry() initializes a registry object, and add_table() adds the metadata for each table to it. This avoids the need to manually combine data.table objects.
