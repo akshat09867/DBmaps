@@ -43,23 +43,26 @@ The example uses four CSV files that represent common tables in an e-commerce da
 *   [**transactions.csv**](https://github.com/akshat09867/DBmaps/tree/main/inst/extdata/transactions.csv)
 *   [**views.csv**](https://github.com/akshat09867/DBmaps/tree/main/inst/extdata/view.csv)
 
-First, let's load these tables into our R session. For this example, we will assume the files have been downloaded to a local `extdata` directory.
+First, let's load these tables into our R session.
 
 ```{r load_data, message=FALSE}
-path_customers <- system.file("extdata", "customers.csv", package = "DBmaps")
-path_products <- system.file("extdata", "products.csv", package = "DBmaps")
-path_transactions <- system.file("extdata", "transactions.csv", package = "DBmaps")
-path_views <- system.file("extdata", "views.csv", package = "DBmaps")
-
-customers <- fread(path_customers)
-products <- fread(path_products)
-transactions <- fread(path_transactions)
-views <- fread(path_views)
+customers <- fread("https://raw.githubusercontent.com/akshat09867/DBmaps/main/inst/extdata/customers.csv")
+products <- fread("https://raw.githubusercontent.com/akshat09867/DBmaps/main/inst/extdata/products.csv")
+transactions <- fread("https://raw.githubusercontent.com/akshat09867/DBmaps/main/inst/extdata/transactions.csv")
+views <- fread("https://raw.githubusercontent.com/akshat09867/DBmaps/main/inst/extdata/views.csv")
 
 transactions[, time := as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")]
 views[, time := as.POSIXct(time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")]
 
 cat("--- All 4 Raw Data Tables Loaded Successfully ---\n")
+cat("---Customers Data---\n")
+print(head(customers, 5))
+cat("---products Data---\n")
+print(head(products, 5))
+cat("---Transactions Data---\n")
+print(head(transactions, 5))
+cat("---Views Data---\n")
+print(head(views, 5))
 ```
 
 ### 2. Defining Metadata with `table_info()`
@@ -103,7 +106,8 @@ views_info <- table_info(
     list(AggregatedName = "ViewsByCustomer", AggregationFunction = "count", GroupingVariables = "customer_id")
   )))
 )
-
+cat("---Metadata for transactions---\n")
+print(transactions_info)
 ```
 ### 3. create_metadata_registry() and add_table()
 To manage metadata for multiple tables, DBmaps provides a simple registry system.
@@ -178,8 +182,17 @@ plan <- create_join_plan(
 
 print(plan)
 ```
-The planner has correctly identified that it needs to perform two separate aggregations (one on `transactions` and one on `views`) and then chain two merge 
-operations to combine them with the `products` table.
+The output of the planner is a data.table that acts as an executable recipe. Each row represents a step, but the final column, code, is the most powerful feature. 
+It contains the precise, executable R code for each step of the data manipulation process.
+Let's break down how the plan achieves our goal:
+
+**1. Steps 1 & 2 (AGGREGATE):** The planner analyzed our request for RevenueByProduct and ViewsByProduct. It correctly determined from the metadata that these require aggregating the transactions and views tables, respectively. It then generated the exact data.table code to create two new, summarized tables: agg_transactions and agg_views.
+
+**2. Steps 3 & 4 (MERGE):** The planner then constructed a sequence of join operations. It first merges the aggregated transactions (agg_transactions) onto our products base table. Then, it merges the aggregated views (agg_views) onto the result of the first merge. This sequential chaining correctly combines all the necessary data.
+
+**3. Step 5 (SELECT):** Finally, the planner generates the code to select only the columns we originally requested from the final, fully merged table.
+
+This demonstrates the core value of the planner: it automates the tedious and error-prone task of determining the correct sequence of aggregations and joins, providing a concrete set of steps that will join the data in our preferred manner.
 
 **Handling Invalid Requests**
 
@@ -230,11 +243,12 @@ This strict validation ensures that only logical and correct data manipulation p
 
 To make the plan even clearer, we can visualize it as a flowchart using `plot_join_plan()`.
 
-```{r plot_plan, fig.align='center'}
+```{r plot_plan, fig.align='center', results='asis'}
 # This requires the DiagrammeR package
 if (requireNamespace("DiagrammeR", quietly = TRUE)) {
+  # Generate the plot object
   visualize <- plot_join_plan(plan)
-  print(visualize)
+  visualize  
 } else {
   cat("Install the 'DiagrammeR' package to visualize the join plan.")
 }
