@@ -262,7 +262,7 @@ This strict validation ensures that only logical and correct data manipulation p
 
 To make the plan even clearer, we can visualize it as a flowchart using `plot_join_plan()`.
 
-```{r plot_plan, fig.align='center', results='asis'}
+```{r plot_plan, fig.align='center', results='asis', fig.width=10}
 # This requires the DiagrammeR package
 if (requireNamespace("DiagrammeR", quietly = TRUE)) {
   # Generate the plot object
