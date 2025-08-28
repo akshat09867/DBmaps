@@ -41,7 +41,8 @@ customers_meta <- table_info(
  identifier_columns = "customer_id",
  key_outcome_specs = list(
    list(OutcomeName = "CustomerCount", ValueExpression = 1, AggregationMethods = list(
-     list(AggregatedName = "CountByRegion", AggregationFunction = "sum", GroupingVariables = "region")
+     list(AggregatedName = "CountByRegion", AggregationFunction = "sum", 
+GroupingVariables = "region")
    ))
  )
 )

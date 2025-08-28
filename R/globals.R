@@ -1,0 +1,14 @@
+utils::globalVariables(c(
+  ".",
+  ":=",
+  "aggregated_name",
+  "grouping_variable",
+  "identifier_columns",
+  "table_from",
+  "table_name",
+  "table_to",
+  "temp_join_key",
+  "temp_key_string",
+  "key_str",
+  "type_factor"
+))

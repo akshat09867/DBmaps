@@ -7,13 +7,10 @@ Authors@R:
         person("David", "Shilane", ,"david.shilane@columbia.edu", role = c("aut"))
     )
 Description:
-    This package is designed to simplify and automate the exploration, 
-    organization, and merging of data stored in relational databases. Instead of 
-    manually inspecting schemas and writing complex SQL joins, DBMaps enables you to:
-        - Discover and document table relationships
-        - Create and maintain a join-map
-        - Search for suggested joins
-        - Merge data
+    Simplifies and automates the process of exploring and merging 
+    data from relational databases. This package allows users to discover 
+    table relationships, create a map of all possible joins, and generate 
+    executable plans to merge data based on a structured metadata framework.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -27,3 +24,6 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 Imports:
   data.table
+Depends: 
+    R (>= 3.5)
+LazyData: true

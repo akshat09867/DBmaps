@@ -8,7 +8,8 @@
 #' @return A final, merged data.table.
 #' @export
 execute_join_plan <- function(join_plan, data_list) {
-  exec_env <- new.env()
+
+  exec_env <- new.env(parent = baseenv())
   
   for (name in names(data_list)) {
     assign(name, data_list[[name]], envir = exec_env)
@@ -17,6 +18,7 @@ execute_join_plan <- function(join_plan, data_list) {
   for (i in 1:nrow(join_plan)) {
     code_to_run <- join_plan$code[i]
     message("Executing step ", i, ": ", code_to_run)
+    
     eval(parse(text = code_to_run), envir = exec_env)
   }
   
