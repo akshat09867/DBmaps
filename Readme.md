@@ -17,5 +17,5 @@ DBmaps solves these complexities by providing tools to quickly understand your d
 
 - **Automated Discovery:** Automatically identify which tables can be joined and suggest the most likely linking variables using fuzzy matching and value overlap.  
 - **Visual Mapping:** Generate clear, intuitive visualizations of your database schema to grasp potential relationships at a glance.  
-- **Pathfinding:** Automatically find valid join paths between distant tables using graph search algorithms (BFS).  
+- **Pathfinding:** Automatically find valid join paths between distant tables.  
 - **Simplified Merging:** Perform sequential merges of multiple tables without writing complex, nested code.
